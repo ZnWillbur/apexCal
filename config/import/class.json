@@ -1,0 +1,181 @@
+{
+  "semester_start_monday": "2026-3-2", 
+  "courses": [
+    {
+      "name": "Java EE企业应用开发",
+      "weekday": "星期一",
+      "start_section": 1,
+      "end_section": 2,
+      "weeks": "1-16",
+      "location": "4603",
+      "teacher": "杨春",
+      "classes": "24信管1-2",
+      "enrollment": 58
+    },
+    {
+      "name": "Java EE企业应用开发",
+      "weekday": "星期一",
+      "start_section": 3,
+      "end_section": 4,
+      "weeks": "8-11",
+      "location": "未排地点",
+      "teacher": "杨春",
+      "classes": "24信管1-2",
+      "enrollment": 58
+    },
+    {
+      "name": "信息资源管理",
+      "weekday": "星期二",
+      "start_section": 1,
+      "end_section": 2,
+      "weeks": "1-16",
+      "location": "4613",
+      "teacher": "毛小娟",
+      "classes": "24信管1-2",
+      "enrollment": 61
+    },
+    {
+      "name": "马克思主义基本原理",
+      "weekday": "星期二",
+      "start_section": 3,
+      "end_section": 4,
+      "weeks": "1-16",
+      "location": "4207",
+      "teacher": "林哲珣",
+      "classes": "24信管1-3",
+      "enrollment": 92
+    },
+    {
+      "name": "大数据管理与应用",
+      "weekday": "星期二",
+      "start_section": 8,
+      "end_section": 9,
+      "weeks": "6-9",
+      "location": "未排地点",
+      "teacher": "邓金",
+      "classes": "24信管1-2",
+      "enrollment": 32
+    },
+    {
+      "name": "Web高级开发技术",
+      "weekday": "星期二",
+      "start_section": 10,
+      "end_section": 11,
+      "weeks": "1-16",
+      "location": "4106",
+      "teacher": "韦婷婷",
+      "classes": "24信管1-2",
+      "enrollment": 51
+    },
+    {
+      "name": "大数据管理与应用",
+      "weekday": "星期二",
+      "start_section": 13,
+      "end_section": 15,
+      "weeks": "1-11",
+      "location": "4106",
+      "teacher": "邓金",
+      "classes": "24信管1-2",
+      "enrollment": 32
+    },
+    {
+      "name": "大学英语Ⅳ (翻译)[A]",
+      "weekday": "星期三",
+      "start_section": 1,
+      "end_section": 2,
+      "weeks": "1-16",
+      "location": "4701",
+      "teacher": "吴学进",
+      "classes": "板块(5)/数信学院998",
+      "enrollment": 50
+    },
+    {
+      "name": "体育Ⅳ[无等级][健身健美分组20]",
+      "weekday": "星期三",
+      "start_section": 3,
+      "end_section": 4,
+      "weeks": "1-16",
+      "location": "综合馆健1",
+      "teacher": "王顺熙",
+      "classes": "板块(7)/数信学院993,海洋学院215,水利学院282",
+      "enrollment": 37
+    },
+    {
+      "name": "线性代数",
+      "weekday": "星期三",
+      "start_section": 8,
+      "end_section": 9,
+      "weeks": "1-8",
+      "location": "4206",
+      "teacher": "刘文琰",
+      "classes": "24信管1-4",
+      "enrollment": 130
+    },
+    {
+      "name": "商务智能",
+      "weekday": "星期三",
+      "start_section": 10,
+      "end_section": 11,
+      "weeks": "1-16",
+      "location": "4106",
+      "teacher": "杨春",
+      "classes": "24信管1-2",
+      "enrollment": 60
+    },
+    {
+      "name": "大学生创新创业基础",
+      "weekday": "星期四",
+      "start_section": 3,
+      "end_section": 4,
+      "weeks": "1-8",
+      "location": "4307",
+      "teacher": "张凯",
+      "classes": "24信管1-2",
+      "enrollment": 61
+    },
+    {
+      "name": "线性代数",
+      "weekday": "星期四",
+      "start_section": 8,
+      "end_section": 9,
+      "weeks": "1-8",
+      "location": "4105",
+      "teacher": "刘文琰",
+      "classes": "24信管1-4",
+      "enrollment": 130
+    },
+    {
+      "name": "Web高级开发技术",
+      "weekday": "星期四",
+      "start_section": 10,
+      "end_section": 11,
+      "weeks": "8-11",
+      "location": "未排地点",
+      "teacher": "韦婷婷",
+      "classes": "24信管1-2",
+      "enrollment": 51
+    },
+    {
+      "name": "应用统计学",
+      "weekday": "星期五",
+      "start_section": 1,
+      "end_section": 2,
+      "weeks": "1-16",
+      "location": "4103",
+      "teacher": "张建桃",
+      "classes": "24信管1-2",
+      "enrollment": 61
+    },
+    {
+      "name": "形势与政策Ⅱ",
+      "weekday": "星期五",
+      "start_section": 13,
+      "end_section": 14,
+      "weeks": "10-13",
+      "location": "4108",
+      "teacher": "杨松霖",
+      "classes": "24计算科学1-3,24统计学1-2,24信管1-4,24思政教育1-3",
+      "enrollment": 383
+    }
+  ]
+}

@@ -1,0 +1,401 @@
+.root {
+    -fx-font-family: "Microsoft YaHei UI";
+}
+
+.app-root {
+    -fx-background-color: linear-gradient(to bottom right, #f7efe8, #f2d8d3 48%, #eadfd5 100%);
+}
+
+.app-mark {
+    -fx-font-size: 16px;
+    -fx-font-weight: 700;
+    -fx-text-fill: #8f3d35;
+    -fx-letter-spacing: 1.8px;
+}
+
+.headline {
+    -fx-font-size: 38px;
+    -fx-font-weight: 800;
+    -fx-text-fill: #2f1f1c;
+}
+
+.lead {
+    -fx-font-size: 16px;
+    -fx-text-fill: rgba(47, 31, 28, 0.78);
+    -fx-line-spacing: 5px;
+    -fx-max-width: 620px;
+}
+
+.headline-small {
+    -fx-font-size: 28px;
+    -fx-font-weight: 800;
+    -fx-text-fill: #2f1f1c;
+}
+
+.lead-small {
+    -fx-font-size: 14px;
+    -fx-text-fill: rgba(47, 31, 28, 0.72);
+}
+
+.summary-card {
+    -fx-background-color: rgba(255, 251, 248, 0.82);
+    -fx-background-radius: 24px;
+    -fx-padding: 28px;
+    -fx-pref-width: 320px;
+    -fx-border-color: rgba(143, 61, 53, 0.12);
+    -fx-border-radius: 24px;
+}
+
+.card-title {
+    -fx-font-size: 22px;
+    -fx-font-weight: 800;
+    -fx-text-fill: #2f1f1c;
+}
+
+.summary-line {
+    -fx-font-size: 15px;
+    -fx-font-weight: 600;
+    -fx-text-fill: #5a3c37;
+    -fx-padding: 10px 14px;
+    -fx-background-color: rgba(255, 255, 255, 0.72);
+    -fx-background-radius: 16px;
+}
+
+.hint-text {
+    -fx-font-size: 13px;
+    -fx-text-fill: rgba(47, 31, 28, 0.62);
+    -fx-line-spacing: 4px;
+}
+
+.week-chip {
+    -fx-font-size: 16px;
+    -fx-font-weight: 800;
+    -fx-text-fill: #7f2f28;
+    -fx-padding: 10px 16px;
+    -fx-background-color: rgba(255, 252, 249, 0.86);
+    -fx-background-radius: 18px;
+    -fx-border-color: rgba(127, 47, 40, 0.12);
+    -fx-border-radius: 18px;
+}
+
+.nav-button {
+    -fx-background-color: rgba(255, 252, 249, 0.86);
+    -fx-text-fill: #7f2f28;
+    -fx-pref-width: 42px;
+    -fx-pref-height: 42px;
+    -fx-font-size: 18px;
+    -fx-font-weight: 800;
+}
+
+.schedule-scroll {
+    -fx-background-color: transparent;
+    -fx-border-color: transparent;
+}
+
+.schedule-scroll > .viewport {
+    -fx-background-color: transparent;
+}
+
+.schedule-grid {
+    -fx-background-color: rgba(143, 61, 53, 0.08);
+    -fx-padding: 1px;
+}
+
+.schedule-corner,
+.day-header,
+.time-cell,
+.schedule-cell {
+    -fx-background-color: rgba(255, 252, 249, 0.92);
+}
+
+.schedule-corner {
+    -fx-alignment: center;
+}
+
+.corner-title {
+    -fx-font-size: 15px;
+    -fx-font-weight: 800;
+    -fx-text-fill: #5a3c37;
+}
+
+.day-header {
+    -fx-border-color: rgba(143, 61, 53, 0.06);
+}
+
+.day-header-clickable {
+    -fx-cursor: hand;
+}
+
+.day-header-clickable:hover {
+    -fx-background-color: rgba(255, 249, 245, 0.98);
+}
+
+.day-name {
+    -fx-font-size: 18px;
+    -fx-font-weight: 800;
+    -fx-text-fill: #2f1f1c;
+}
+
+.day-date {
+    -fx-font-size: 14px;
+    -fx-text-fill: rgba(47, 31, 28, 0.68);
+}
+
+.ddl-chip {
+    -fx-font-size: 12px;
+    -fx-font-weight: 700;
+    -fx-text-fill: #8f3d35;
+    -fx-background-color: rgba(166, 63, 52, 0.08);
+    -fx-background-radius: 999px;
+    -fx-padding: 4px 10px;
+}
+
+.summary-chip {
+    -fx-font-size: 12px;
+    -fx-font-weight: 700;
+    -fx-text-fill: #5a3c37;
+    -fx-background-color: rgba(90, 60, 55, 0.08);
+    -fx-background-radius: 999px;
+    -fx-padding: 4px 10px;
+}
+
+.time-cell {
+    -fx-padding: 10px;
+}
+
+.time-section-label {
+    -fx-font-size: 14px;
+    -fx-font-weight: 800;
+    -fx-text-fill: #2f1f1c;
+}
+
+.time-range-label {
+    -fx-font-size: 12px;
+    -fx-text-fill: rgba(47, 31, 28, 0.62);
+}
+
+.schedule-cell {
+    -fx-border-color: rgba(143, 61, 53, 0.04);
+}
+
+.schedule-block {
+    -fx-background-color: linear-gradient(to bottom right, #d86a5e, #b4463c);
+    -fx-background-radius: 18px;
+    -fx-border-radius: 18px;
+    -fx-border-color: rgba(255, 255, 255, 0.18);
+    -fx-cursor: hand;
+}
+
+.schedule-block:hover {
+    -fx-background-color: linear-gradient(to bottom right, #e17368, #b94e43);
+}
+
+.schedule-block-selected {
+    -fx-border-color: #fff3ef;
+    -fx-border-width: 2px;
+}
+
+.course-title {
+    -fx-font-size: 14px;
+    -fx-font-weight: 800;
+    -fx-text-fill: white;
+}
+
+.course-location {
+    -fx-font-size: 12px;
+    -fx-text-fill: rgba(255, 255, 255, 0.88);
+}
+
+.task-kind-chip {
+    -fx-font-size: 11px;
+    -fx-font-weight: 800;
+    -fx-text-fill: rgba(255, 255, 255, 0.92);
+    -fx-background-color: rgba(255, 255, 255, 0.14);
+    -fx-background-radius: 999px;
+    -fx-padding: 3px 8px;
+}
+
+.detail-card {
+    -fx-background-color: rgba(255, 252, 249, 0.88);
+    -fx-background-radius: 24px;
+    -fx-border-color: rgba(143, 61, 53, 0.08);
+    -fx-border-radius: 24px;
+}
+
+.detail-title {
+    -fx-font-size: 22px;
+    -fx-font-weight: 800;
+    -fx-text-fill: #2f1f1c;
+}
+
+.detail-line {
+    -fx-font-size: 14px;
+    -fx-text-fill: #5a3c37;
+}
+
+.detail-secondary {
+    -fx-font-weight: 700;
+}
+
+.detail-meta {
+    -fx-text-fill: rgba(90, 60, 55, 0.78);
+}
+
+.button {
+    -fx-cursor: hand;
+    -fx-background-radius: 18px;
+    -fx-padding: 12px 24px;
+    -fx-font-size: 15px;
+    -fx-font-weight: 700;
+}
+
+.primary-button {
+    -fx-background-color: #a63f34;
+    -fx-text-fill: white;
+}
+
+.primary-button:hover {
+    -fx-background-color: #91362d;
+}
+
+.secondary-button {
+    -fx-background-color: rgba(255, 255, 255, 0.72);
+    -fx-text-fill: #5a3c37;
+    -fx-border-color: rgba(90, 60, 55, 0.18);
+    -fx-border-radius: 18px;
+}
+
+.secondary-button:hover {
+    -fx-background-color: rgba(255, 255, 255, 0.92);
+}
+
+.form-error {
+    -fx-text-fill: #8e2430;
+    -fx-font-size: 13px;
+    -fx-font-weight: 700;
+}
+
+.app-dialog {
+    -fx-background-color: linear-gradient(to bottom right, #fffaf7, #f7ede8 55%, #f2dfd8 100%);
+}
+
+.calendar-grid {
+    -fx-padding: 2px;
+}
+
+.calendar-weekday-card {
+    -fx-background-color: rgba(255, 252, 249, 0.9);
+    -fx-background-radius: 16px;
+    -fx-border-color: rgba(143, 61, 53, 0.1);
+    -fx-border-radius: 16px;
+}
+
+.calendar-weekday {
+    -fx-font-size: 13px;
+    -fx-font-weight: 800;
+    -fx-text-fill: #5a3c37;
+}
+
+.calendar-cell {
+    -fx-cursor: hand;
+    -fx-background-color: rgba(255, 252, 249, 0.88);
+    -fx-border-color: rgba(143, 61, 53, 0.08);
+    -fx-border-radius: 18px;
+    -fx-background-radius: 18px;
+}
+
+.calendar-cell:hover {
+    -fx-border-color: rgba(143, 61, 53, 0.2);
+}
+
+.calendar-cell-today {
+    -fx-border-color: #8f3d35;
+    -fx-border-width: 2px;
+}
+
+.calendar-cell-blank {
+    -fx-background-color: rgba(255, 252, 249, 0.45);
+    -fx-background-radius: 18px;
+}
+
+.calendar-day-number {
+    -fx-font-size: 18px;
+    -fx-font-weight: 800;
+    -fx-text-fill: #2f1f1c;
+}
+
+.calendar-day-summary {
+    -fx-font-size: 13px;
+    -fx-font-weight: 700;
+    -fx-text-fill: #5a3c37;
+}
+
+.calendar-day-deadline {
+    -fx-font-size: 12px;
+    -fx-text-fill: rgba(90, 60, 55, 0.78);
+}
+
+.year-grid {
+    -fx-padding: 4px;
+}
+
+.month-card {
+    -fx-cursor: hand;
+    -fx-background-color: rgba(255, 252, 249, 0.88);
+    -fx-background-radius: 22px;
+    -fx-border-color: rgba(143, 61, 53, 0.08);
+    -fx-border-radius: 22px;
+}
+
+.month-card:hover {
+    -fx-border-color: rgba(143, 61, 53, 0.2);
+}
+
+.month-card-current {
+    -fx-border-color: #8f3d35;
+    -fx-border-width: 2px;
+}
+
+.month-card-title {
+    -fx-font-size: 20px;
+    -fx-font-weight: 800;
+    -fx-text-fill: #2f1f1c;
+}
+
+.month-card-count {
+    -fx-font-size: 15px;
+    -fx-font-weight: 800;
+    -fx-text-fill: #5a3c37;
+}
+
+.widget-card {
+    -fx-background-color: rgba(255, 250, 247, 0.92);
+    -fx-background-radius: 22px;
+    -fx-border-color: rgba(143, 61, 53, 0.12);
+    -fx-border-radius: 22px;
+}
+
+.widget-title {
+    -fx-font-size: 18px;
+    -fx-font-weight: 800;
+    -fx-text-fill: #2f1f1c;
+}
+
+.widget-summary {
+    -fx-font-size: 12px;
+    -fx-text-fill: rgba(47, 31, 28, 0.68);
+}
+
+.widget-line {
+    -fx-font-size: 13px;
+    -fx-text-fill: #5a3c37;
+    -fx-padding: 8px 10px;
+    -fx-background-color: rgba(255, 255, 255, 0.72);
+    -fx-background-radius: 12px;
+}
+
+.widget-empty {
+    -fx-font-size: 13px;
+    -fx-text-fill: rgba(47, 31, 28, 0.68);
+    -fx-line-spacing: 4px;
+}
