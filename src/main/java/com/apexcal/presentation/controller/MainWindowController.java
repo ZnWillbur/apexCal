@@ -5,27 +5,30 @@ import com.apexcal.application.service.ScheduleService;
 import com.apexcal.domain.layout.TimeSection;
 import com.apexcal.domain.semester.SemesterConfig;
 import com.apexcal.domain.semester.WeekSchedule;
+import com.apexcal.domain.service.ColorGradientService;
 import com.apexcal.domain.task.CourseMetadata;
 import com.apexcal.domain.task.TaskItem;
 import com.apexcal.domain.task.TaskOccurrence;
 import com.apexcal.domain.task.TaskSource;
 import com.apexcal.domain.task.TaskType;
 import com.apexcal.presentation.dialog.DailyAgendaDialog;
-import com.apexcal.presentation.dialog.MonthViewDialog;
 import com.apexcal.presentation.dialog.SettingsDialog;
 import com.apexcal.presentation.dialog.TaskFormDialog;
 import com.apexcal.presentation.dialog.TaskOverviewDialog;
-import com.apexcal.presentation.dialog.YearViewDialog;
 import com.apexcal.presentation.viewmodel.WeekViewModel;
+import com.apexcal.presentation.window.WindowTheme;
 import java.time.DayOfWeek;
 import java.time.LocalDate;
 import java.time.YearMonth;
 import java.time.format.DateTimeFormatter;
+import java.util.Comparator;
 import java.util.List;
+import java.util.Map;
 import javafx.fxml.FXML;
 import javafx.geometry.Insets;
 import javafx.geometry.Pos;
 import javafx.scene.control.Alert;
+import javafx.scene.control.Button;
 import javafx.scene.control.ButtonType;
 import javafx.scene.control.Label;
 import javafx.scene.layout.ColumnConstraints;
@@ -38,10 +41,19 @@ import javafx.scene.layout.VBox;
 import javafx.stage.Window;
 
 public final class MainWindowController {
+    private enum ViewMode {
+        WEEK,
+        MONTH,
+        YEAR
+    }
+
     private static final DateTimeFormatter DEADLINE_FORMATTER = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm");
 
     @FXML
-    private Label weekLabel;
+    private Label viewTitleLabel;
+
+    @FXML
+    private Label periodLabel;
 
     @FXML
     private Label rangeLabel;
@@ -50,7 +62,22 @@ public final class MainWindowController {
     private Label sourceStatusLabel;
 
     @FXML
+    private StackPane viewContentHost;
+
+    @FXML
     private GridPane scheduleGrid;
+
+    @FXML
+    private Button weekViewButton;
+
+    @FXML
+    private Button monthViewButton;
+
+    @FXML
+    private Button yearViewButton;
+
+    @FXML
+    private VBox detailContainer;
 
     @FXML
     private Label detailTitleLabel;
@@ -76,24 +103,49 @@ public final class MainWindowController {
     private ScheduleService scheduleService;
     private AppConfigService appConfigService;
     private WeekViewModel viewModel;
-    private Runnable onBack = () -> {
-    };
     private Runnable onDataChanged = () -> {
     };
+
+    private final ColorGradientService colorGradientService = new ColorGradientService();
+
+    private ViewMode currentViewMode = ViewMode.WEEK;
+    private YearMonth currentMonth = YearMonth.now();
+    private int currentYear = LocalDate.now().getYear();
+
+    private YearMonth cachedMonthKey;
+    private VBox cachedMonthNode;
+    private ScheduleService.MonthOverview cachedMonthOverview;
+
+    private Integer cachedYearKey;
+    private VBox cachedYearNode;
+    private ScheduleService.YearOverview cachedYearOverview;
+
     private Region selectedBlock;
     private TaskItem selectedTask;
 
-    public void init(ScheduleService scheduleService, AppConfigService appConfigService, Runnable onBack, Runnable onDataChanged) {
+    public void init(ScheduleService scheduleService, AppConfigService appConfigService, Runnable onDataChanged) {
         this.scheduleService = scheduleService;
         this.appConfigService = appConfigService;
-        this.onBack = onBack;
         this.onDataChanged = onDataChanged;
         this.viewModel = new WeekViewModel(scheduleService);
-        weekLabel.textProperty().bind(viewModel.weekLabelProperty());
-        rangeLabel.textProperty().bind(viewModel.rangeLabelProperty());
+
         sourceStatusLabel.textProperty().bind(viewModel.sourceLabelProperty());
-        renderWeek();
-        showEmptyDetails();
+        currentMonth = YearMonth.from(viewModel.currentWeekSchedule().visibleDates().getFirst());
+        currentYear = currentMonth.getYear();
+
+        viewContentHost.setOnMouseClicked(event -> {
+            if (event.getTarget() == viewContentHost) {
+                hideDetails();
+            }
+        });
+        scheduleGrid.setOnMouseClicked(event -> {
+            if (event.getTarget() == scheduleGrid) {
+                hideDetails();
+            }
+        });
+
+        hideDetails();
+        switchViewMode(ViewMode.WEEK);
     }
 
     public void openNewTaskDialog(TaskType preferredType, LocalDate preferredDate) {
@@ -105,22 +157,52 @@ public final class MainWindowController {
     }
 
     @FXML
-    private void handlePreviousWeek() {
-        viewModel.previousWeek();
-        renderWeek();
-        showEmptyDetails();
+    private void handlePreviousAction() {
+        switch (currentViewMode) {
+            case WEEK -> viewModel.previousWeek();
+            case MONTH -> {
+                currentMonth = currentMonth.minusMonths(1);
+                currentYear = currentMonth.getYear();
+            }
+            case YEAR -> currentYear -= 1;
+        }
+        renderCurrentView();
     }
 
     @FXML
-    private void handleNextWeek() {
-        viewModel.nextWeek();
-        renderWeek();
-        showEmptyDetails();
+    private void handleNextAction() {
+        switch (currentViewMode) {
+            case WEEK -> viewModel.nextWeek();
+            case MONTH -> {
+                currentMonth = currentMonth.plusMonths(1);
+                currentYear = currentMonth.getYear();
+            }
+            case YEAR -> currentYear += 1;
+        }
+        renderCurrentView();
     }
 
     @FXML
-    private void handleBackAction() {
-        onBack.run();
+    private void handleWeekViewAction() {
+        switchViewMode(ViewMode.WEEK);
+    }
+
+    @FXML
+    private void handleMonthViewAction() {
+        if (currentViewMode == ViewMode.WEEK) {
+            currentMonth = YearMonth.from(viewModel.currentWeekSchedule().visibleDates().getFirst());
+            currentYear = currentMonth.getYear();
+        }
+        switchViewMode(ViewMode.MONTH);
+    }
+
+    @FXML
+    private void handleYearViewAction() {
+        if (currentViewMode == ViewMode.WEEK) {
+            currentYear = viewModel.currentWeekSchedule().visibleDates().getFirst().getYear();
+            currentMonth = YearMonth.of(currentYear, 1);
+        }
+        switchViewMode(ViewMode.YEAR);
     }
 
     @FXML
@@ -134,20 +216,13 @@ public final class MainWindowController {
     }
 
     @FXML
-    private void handleMonthViewAction() {
-        new MonthViewDialog(scheduleService, this::refreshAll)
-                .show(ownerWindow(), YearMonth.from(viewModel.currentWeekSchedule().visibleDates().getFirst()));
-    }
-
-    @FXML
-    private void handleYearViewAction() {
-        new YearViewDialog(scheduleService, this::refreshAll)
-                .show(ownerWindow(), viewModel.currentWeekSchedule().visibleDates().getFirst().getYear());
-    }
-
-    @FXML
     private void handleSettingsAction() {
         new SettingsDialog(scheduleService, appConfigService, this::refreshAll).show(ownerWindow());
+    }
+
+    @FXML
+    private void handleCollapseDetailsAction() {
+        hideDetails();
     }
 
     @FXML
@@ -164,7 +239,7 @@ public final class MainWindowController {
             return;
         }
         scheduleService.deleteTask(selectedTask.uuid());
-        selectedTask = null;
+        hideDetails();
         refreshAll();
     }
 
@@ -193,6 +268,7 @@ public final class MainWindowController {
 
     private boolean confirmDelete(TaskItem task) {
         Alert alert = new Alert(Alert.AlertType.CONFIRMATION);
+        WindowTheme.applyAlertTheme(alert);
         alert.initOwner(ownerWindow());
         alert.setTitle("删除任务");
         alert.setHeaderText("确认删除 “" + task.title() + "” 吗？");
@@ -204,40 +280,127 @@ public final class MainWindowController {
 
     private void refreshAll() {
         viewModel.refresh();
-        renderWeek();
-        if (selectedTask != null) {
-            selectedTask = scheduleService.findTask(selectedTask.uuid()).orElse(null);
-            if (selectedTask != null) {
-                showTaskDetails(selectedTask, null);
-            } else {
-                showEmptyDetails();
-            }
-        } else {
-            showEmptyDetails();
+        selectedTask = selectedTask == null ? null : scheduleService.findTask(selectedTask.uuid()).orElse(null);
+        invalidateViewCaches();
+        if (selectedTask == null) {
+            hideDetails();
         }
+        renderCurrentView();
         onDataChanged.run();
     }
 
-    private void renderWeek() {
-        SemesterConfig semesterConfig = viewModel.semesterConfig();
+    private void switchViewMode(ViewMode mode) {
+        currentViewMode = mode;
+        updateViewToggleState();
+        if (mode != ViewMode.WEEK) {
+            hideDetails();
+        }
+        renderCurrentView();
+    }
+
+    private void updateViewToggleState() {
+        updateToggleButton(weekViewButton, currentViewMode == ViewMode.WEEK);
+        updateToggleButton(monthViewButton, currentViewMode == ViewMode.MONTH);
+        updateToggleButton(yearViewButton, currentViewMode == ViewMode.YEAR);
+    }
+
+    private void updateToggleButton(Button button, boolean active) {
+        button.getStyleClass().remove("view-toggle-active");
+        if (active) {
+            button.getStyleClass().add("view-toggle-active");
+        }
+    }
+
+    private void renderCurrentView() {
+        switch (currentViewMode) {
+            case WEEK -> renderWeekView();
+            case MONTH -> renderMonthView();
+            case YEAR -> renderYearView();
+        }
+    }
+
+    private void renderWeekView() {
+        viewTitleLabel.setText("周视图");
+
         WeekSchedule weekSchedule = viewModel.currentWeekSchedule();
+        LocalDate start = weekSchedule.visibleDates().getFirst();
+        LocalDate end = weekSchedule.visibleDates().getLast();
+
+        periodLabel.setText("第" + weekSchedule.weekNumber() + "周");
+        rangeLabel.setText(start + " 至 " + end + " · 点击任务可展开详情，点击空白可收起详情");
+
+        viewContentHost.getChildren().setAll(scheduleGrid);
+        renderWeek(weekSchedule);
+
+        if (selectedTask != null) {
+            showTaskDetails(selectedTask, null);
+        }
+    }
+
+    private void renderMonthView() {
+        viewTitleLabel.setText("月视图");
+        periodLabel.setText(currentMonth.getYear() + "年 " + currentMonth.getMonthValue() + "月");
+
+        if (cachedMonthOverview == null || !currentMonth.equals(cachedMonthKey)) {
+            cachedMonthOverview = scheduleService.buildMonthOverview(currentMonth);
+            cachedMonthNode = buildMonthViewNode(cachedMonthOverview.totalCounts(), cachedMonthOverview.deadlineCounts());
+            cachedMonthKey = currentMonth;
+        }
+
+        rangeLabel.setText("本月累计 " + cachedMonthOverview.totalTasks() + " 项，峰值单日 "
+                + cachedMonthOverview.maxDailyTasks() + " 项 · 点击日期可管理当天任务");
+
+        viewContentHost.getChildren().setAll(cachedMonthNode);
+    }
+
+    private void renderYearView() {
+        viewTitleLabel.setText("年视图");
+        periodLabel.setText(currentYear + "年");
+
+        if (cachedYearOverview == null || cachedYearKey == null || cachedYearKey != currentYear) {
+            cachedYearOverview = scheduleService.buildYearOverview(currentYear);
+            cachedYearNode = buildYearViewNode(cachedYearOverview.monthlyCounts(), cachedYearOverview.maxMonthlyTasks());
+            cachedYearKey = currentYear;
+        }
+
+        rangeLabel.setText("全年累计 " + cachedYearOverview.totalTasks() + " 项，峰值月份 "
+                + cachedYearOverview.maxMonthlyTasks() + " 项 · 点击月份可下钻月视图");
+
+        viewContentHost.getChildren().setAll(cachedYearNode);
+    }
+
+    private void renderWeek(WeekSchedule weekSchedule) {
+        SemesterConfig semesterConfig = viewModel.semesterConfig();
         List<TimeSection> sections = semesterConfig.sections();
+
+        double rowMinHeight = 58;
+        double headerMinHeight = 112;
+        double expectedGridHeight = headerMinHeight + (sections.size() * rowMinHeight) + 2;
+        scheduleGrid.setMinHeight(expectedGridHeight);
+        scheduleGrid.setPrefHeight(expectedGridHeight);
 
         scheduleGrid.getChildren().clear();
         scheduleGrid.getColumnConstraints().clear();
         scheduleGrid.getRowConstraints().clear();
 
-        ColumnConstraints timeColumn = new ColumnConstraints(128);
-        timeColumn.setMinWidth(128);
+        ColumnConstraints timeColumn = new ColumnConstraints();
+        timeColumn.setPercentWidth(12);
         scheduleGrid.getColumnConstraints().add(timeColumn);
+
+        double dayPercent = weekSchedule.visibleDates().isEmpty() ? 88 : 88.0 / weekSchedule.visibleDates().size();
         for (int dayIndex = 0; dayIndex < weekSchedule.visibleDates().size(); dayIndex++) {
-            ColumnConstraints dayColumn = new ColumnConstraints(160);
+            ColumnConstraints dayColumn = new ColumnConstraints();
+            dayColumn.setPercentWidth(dayPercent);
             dayColumn.setHgrow(Priority.ALWAYS);
             dayColumn.setFillWidth(true);
             scheduleGrid.getColumnConstraints().add(dayColumn);
         }
 
-        RowConstraints headerRow = new RowConstraints(104);
+        RowConstraints headerRow = new RowConstraints();
+        headerRow.setPercentHeight(9);
+        headerRow.setMinHeight(headerMinHeight);
+        headerRow.setPrefHeight(headerMinHeight);
+        headerRow.setVgrow(Priority.ALWAYS);
         scheduleGrid.getRowConstraints().add(headerRow);
 
         scheduleGrid.add(createCornerCell(), 0, 0);
@@ -247,12 +410,15 @@ public final class MainWindowController {
             scheduleGrid.add(createDayHeader(date, weekSchedule.totalTaskCountFor(date), weekSchedule.ddlCountFor(date)), dayIndex + 1, 0);
         }
 
+        double sectionPercent = sections.isEmpty() ? 0 : 91.0 / sections.size();
         for (int sectionIndex = 0; sectionIndex < sections.size(); sectionIndex++) {
             int rowIndex = sectionIndex + 1;
             TimeSection section = sections.get(sectionIndex);
 
-            RowConstraints rowConstraints = new RowConstraints(78);
-            rowConstraints.setVgrow(Priority.NEVER);
+            RowConstraints rowConstraints = new RowConstraints();
+            rowConstraints.setPercentHeight(sectionPercent);
+            rowConstraints.setVgrow(Priority.ALWAYS);
+            rowConstraints.setMinHeight(rowMinHeight);
             scheduleGrid.getRowConstraints().add(rowConstraints);
 
             scheduleGrid.add(createTimeCell(section), 0, rowIndex);
@@ -273,8 +439,171 @@ public final class MainWindowController {
                 scheduleGrid.add(block, dayIndex + 1, startRow, 1, endRow - startRow + 1);
                 GridPane.setFillHeight(block, true);
                 GridPane.setFillWidth(block, true);
+                GridPane.setVgrow(block, Priority.ALWAYS);
             }
         }
+    }
+
+    private VBox buildMonthViewNode(Map<LocalDate, Integer> counts, Map<LocalDate, Integer> ddlCounts) {
+        GridPane grid = new GridPane();
+        grid.getStyleClass().add("calendar-grid");
+        grid.setHgap(6);
+        grid.setVgap(6);
+        grid.setMaxSize(Double.MAX_VALUE, Double.MAX_VALUE);
+
+        for (int columnIndex = 0; columnIndex < 7; columnIndex++) {
+            ColumnConstraints constraints = new ColumnConstraints();
+            constraints.setPercentWidth(100.0 / 7);
+            constraints.setHgrow(Priority.ALWAYS);
+            grid.getColumnConstraints().add(constraints);
+        }
+
+        RowConstraints weekdayRow = new RowConstraints();
+        weekdayRow.setPercentHeight(12);
+        weekdayRow.setVgrow(Priority.ALWAYS);
+        weekdayRow.setMinHeight(38);
+        grid.getRowConstraints().add(weekdayRow);
+        for (int rowIndex = 0; rowIndex < 6; rowIndex++) {
+            RowConstraints weekRow = new RowConstraints();
+            weekRow.setPercentHeight(88.0 / 6);
+            weekRow.setVgrow(Priority.ALWAYS);
+            weekRow.setMinHeight(84);
+            grid.getRowConstraints().add(weekRow);
+        }
+
+        List<String> dayNames = List.of("一", "二", "三", "四", "五", "六", "日");
+        for (int columnIndex = 0; columnIndex < dayNames.size(); columnIndex++) {
+            Label headerLabel = new Label("周" + dayNames.get(columnIndex));
+            headerLabel.getStyleClass().add("calendar-weekday");
+            VBox header = new VBox(headerLabel);
+            header.getStyleClass().add("calendar-weekday-card");
+            header.setAlignment(Pos.CENTER);
+            header.setPadding(new Insets(10));
+            grid.add(header, columnIndex, 0);
+        }
+
+        int maxCount = counts.values().stream().max(Comparator.naturalOrder()).orElse(0);
+        int firstDayColumn = currentMonth.atDay(1).getDayOfWeek().getValue() - 1;
+        int dayOfMonth = 1;
+        LocalDate today = LocalDate.now();
+
+        for (int weekIndex = 0; weekIndex < 6; weekIndex++) {
+            for (int dayIndex = 0; dayIndex < 7; dayIndex++) {
+                int cellIndex = weekIndex * 7 + dayIndex;
+                if (cellIndex < firstDayColumn || dayOfMonth > currentMonth.lengthOfMonth()) {
+                    Region placeholder = new Region();
+                    placeholder.getStyleClass().add("calendar-cell-blank");
+                    grid.add(placeholder, dayIndex, weekIndex + 1);
+                    continue;
+                }
+
+                LocalDate date = currentMonth.atDay(dayOfMonth++);
+                int taskCount = counts.getOrDefault(date, 0);
+                int ddlCount = ddlCounts.getOrDefault(date, 0);
+
+                Label dayLabel = new Label(Integer.toString(date.getDayOfMonth()));
+                dayLabel.getStyleClass().add("calendar-day-number");
+
+                Label countLabel = new Label(taskCount == 0 ? "空白日" : taskCount + " 项安排");
+                countLabel.getStyleClass().add("calendar-day-summary");
+                countLabel.setWrapText(true);
+
+                Label ddlLabel = new Label(ddlCount == 0 ? "无 DDL" : "DDL " + ddlCount);
+                ddlLabel.getStyleClass().add("calendar-day-deadline");
+                ddlLabel.setWrapText(true);
+
+                VBox cell = new VBox(4, dayLabel, countLabel, ddlLabel);
+                cell.getStyleClass().add("calendar-cell");
+                if (date.equals(today)) {
+                    cell.getStyleClass().add("calendar-cell-today");
+                }
+                cell.setPadding(new Insets(8));
+                cell.setMinHeight(84);
+                cell.setMaxSize(Double.MAX_VALUE, Double.MAX_VALUE);
+                cell.setStyle(colorGradientService.backgroundStyle(taskCount, maxCount)
+                        + " -fx-background-radius: 18px;"
+                        + " -fx-border-radius: 18px;");
+                cell.setOnMouseClicked(event -> {
+                    openDailyAgenda(date);
+                    refreshAll();
+                });
+                grid.add(cell, dayIndex, weekIndex + 1);
+            }
+        }
+
+        VBox root = new VBox(grid);
+        root.getStyleClass().add("inline-view-card");
+        root.setFillWidth(true);
+        root.setMinHeight(640);
+        root.setPrefHeight(640);
+        root.setMaxSize(Double.MAX_VALUE, Double.MAX_VALUE);
+        VBox.setVgrow(grid, Priority.ALWAYS);
+        return root;
+    }
+
+    private VBox buildYearViewNode(Map<YearMonth, Integer> counts, int maxCount) {
+        GridPane grid = new GridPane();
+        grid.setHgap(8);
+        grid.setVgap(8);
+        grid.getStyleClass().add("year-grid");
+        grid.setMaxSize(Double.MAX_VALUE, Double.MAX_VALUE);
+
+        for (int columnIndex = 0; columnIndex < 4; columnIndex++) {
+            ColumnConstraints constraints = new ColumnConstraints();
+            constraints.setPercentWidth(25);
+            constraints.setHgrow(Priority.ALWAYS);
+            grid.getColumnConstraints().add(constraints);
+        }
+        for (int rowIndex = 0; rowIndex < 3; rowIndex++) {
+            RowConstraints constraints = new RowConstraints();
+            constraints.setPercentHeight(100.0 / 3);
+            constraints.setVgrow(Priority.ALWAYS);
+            constraints.setMinHeight(146);
+            grid.getRowConstraints().add(constraints);
+        }
+
+        int currentMonthValue = LocalDate.now().getMonthValue();
+        int currentSystemYear = LocalDate.now().getYear();
+        for (int monthValue = 1; monthValue <= 12; monthValue++) {
+            YearMonth month = YearMonth.of(currentYear, monthValue);
+            int monthCount = counts.getOrDefault(month, 0);
+
+            Label monthLabel = new Label(monthValue + " 月");
+            monthLabel.getStyleClass().add("month-card-title");
+            Label countLabel = new Label(monthCount + " 项任务");
+            countLabel.getStyleClass().add("month-card-count");
+            Label averageLabel = new Label("日均 " + (month.lengthOfMonth() == 0 ? 0 : monthCount / month.lengthOfMonth()) + " 项");
+            averageLabel.getStyleClass().add("lead-small");
+
+            VBox card = new VBox(6, monthLabel, countLabel, averageLabel);
+            card.getStyleClass().add("month-card");
+            if (currentYear == currentSystemYear && monthValue == currentMonthValue) {
+                card.getStyleClass().add("month-card-current");
+            }
+            card.setPadding(new Insets(10));
+            card.setAlignment(Pos.CENTER_LEFT);
+            card.setMaxSize(Double.MAX_VALUE, Double.MAX_VALUE);
+            card.setStyle(colorGradientService.backgroundStyle(monthCount, maxCount)
+                    + " -fx-background-radius: 22px;"
+                    + " -fx-border-radius: 22px;");
+            card.setOnMouseClicked(event -> {
+                currentMonth = month;
+                switchViewMode(ViewMode.MONTH);
+            });
+
+            int columnIndex = (monthValue - 1) % 4;
+            int rowIndex = (monthValue - 1) / 4;
+            grid.add(card, columnIndex, rowIndex);
+        }
+
+        VBox root = new VBox(grid);
+        root.getStyleClass().add("inline-view-card");
+        root.setFillWidth(true);
+        root.setMinHeight(520);
+        root.setPrefHeight(520);
+        root.setMaxSize(Double.MAX_VALUE, Double.MAX_VALUE);
+        VBox.setVgrow(grid, Priority.ALWAYS);
+        return root;
     }
 
     private StackPane createCornerCell() {
@@ -299,7 +628,8 @@ public final class MainWindowController {
         ddlLabel.getStyleClass().add("ddl-chip");
 
         VBox header = new VBox(4, dayName, dateLabel, totalLabel, ddlLabel);
-        header.setPadding(new Insets(10, 8, 10, 8));
+        header.setPadding(new Insets(6, 6, 6, 6));
+        header.setMinHeight(104);
         header.setAlignment(Pos.CENTER);
         header.getStyleClass().addAll("day-header", "day-header-clickable");
         header.setOnMouseClicked(event -> openDailyAgenda(date));
@@ -314,7 +644,7 @@ public final class MainWindowController {
         timeRangeLabel.getStyleClass().add("time-range-label");
 
         VBox cell = new VBox(4, sectionLabel, timeRangeLabel);
-        cell.setPadding(new Insets(8));
+        cell.setPadding(new Insets(6));
         cell.setAlignment(Pos.CENTER_LEFT);
         cell.getStyleClass().add("time-cell");
         return cell;
@@ -322,8 +652,9 @@ public final class MainWindowController {
 
     private StackPane createScheduleCell() {
         StackPane cell = new StackPane();
-        cell.setMinHeight(78);
         cell.getStyleClass().add("schedule-cell");
+        cell.setMinHeight(56);
+        cell.setOnMouseClicked(event -> hideDetails());
         return cell;
     }
 
@@ -347,7 +678,7 @@ public final class MainWindowController {
         StackPane block = new StackPane(content);
         block.getStyleClass().add("schedule-block");
         block.setStyle(buildBlockStyle(task.colorHex()));
-        block.setMinHeight(78);
+        block.setMinHeight(56);
         block.setMaxWidth(Double.MAX_VALUE);
         block.setOnMouseClicked(event -> showTaskDetails(task, block));
         return block;
@@ -363,6 +694,9 @@ public final class MainWindowController {
         }
 
         selectedTask = task;
+        detailContainer.setManaged(true);
+        detailContainer.setVisible(true);
+
         detailTitleLabel.setText(task.title());
         detailTypeLabel.setText("类型：" + task.type().displayName() + " · 来源：" + sourceLabel(task.source()));
         detailLocationLabel.setText("地点：" + fillEmpty(task.location(), "未设置"));
@@ -417,19 +751,23 @@ public final class MainWindowController {
         detailMetaLabel.setText("优先级：" + task.priority());
     }
 
-    private void showEmptyDetails() {
+    private void hideDetails() {
         if (selectedBlock != null) {
             selectedBlock.getStyleClass().remove("schedule-block-selected");
             selectedBlock = null;
         }
         selectedTask = null;
-        detailTitleLabel.setText("点击课表块或日期查看详情");
-        detailTypeLabel.setText("类型：未选择任务");
-        detailLocationLabel.setText("地点：未选择任务");
-        detailTimeLabel.setText("时间：未选择任务");
-        detailWeekLabel.setText("说明：点击日期可进入当日日程，点击课表块可直接查看和编辑详情。");
-        detailNoteLabel.setText("备注：支持课程、自建任务和 DDL 统一管理。");
-        detailMetaLabel.setText("提示：月视图和年视图已可用，托盘和桌面小窗会与这里共享同一份数据。");
+
+        detailContainer.setManaged(false);
+        detailContainer.setVisible(false);
+
+        detailTitleLabel.setText("点击任务查看详情");
+        detailTypeLabel.setText("");
+        detailLocationLabel.setText("");
+        detailTimeLabel.setText("");
+        detailWeekLabel.setText("");
+        detailNoteLabel.setText("");
+        detailMetaLabel.setText("");
     }
 
     private Integer resolveStartRow(List<TimeSection> sections, TaskOccurrence occurrence) {
@@ -469,8 +807,18 @@ public final class MainWindowController {
         return raw == null || raw.isBlank() ? fallback : raw;
     }
 
+    private void invalidateViewCaches() {
+        cachedMonthKey = null;
+        cachedMonthNode = null;
+        cachedMonthOverview = null;
+
+        cachedYearKey = null;
+        cachedYearNode = null;
+        cachedYearOverview = null;
+    }
+
     private Window ownerWindow() {
-        return scheduleGrid.getScene() == null ? null : scheduleGrid.getScene().getWindow();
+        return viewContentHost.getScene() == null ? null : viewContentHost.getScene().getWindow();
     }
 
     private String toChineseDayName(DayOfWeek dayOfWeek) {

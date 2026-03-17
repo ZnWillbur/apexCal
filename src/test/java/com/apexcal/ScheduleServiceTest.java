@@ -30,10 +30,14 @@ class ScheduleServiceTest {
     void shouldLoadImportedCourseDataIntoDatabase() {
         SemesterConfig config = scheduleService.getSemesterConfig();
         long courseCount = scheduleService.listAllTasks().stream().filter(task -> task.type() == TaskType.COURSE).count();
+        long customCount = scheduleService.listAllTasks().stream().filter(task -> task.type() == TaskType.CUSTOM).count();
+        long deadlineCount = scheduleService.listAllTasks().stream().filter(task -> task.type() == TaskType.DDL).count();
 
         Assertions.assertEquals(LocalDate.of(2026, 3, 2), config.firstMonday());
         Assertions.assertEquals(15, config.sections().size());
-        Assertions.assertEquals(16, courseCount);
+        Assertions.assertEquals(2, courseCount);
+        Assertions.assertEquals(2, customCount);
+        Assertions.assertEquals(2, deadlineCount);
     }
 
     @Test
@@ -42,17 +46,17 @@ class ScheduleServiceTest {
 
         Assertions.assertEquals(2, weekSchedule.weekNumber());
         Assertions.assertEquals(1, weekSchedule.occurrencesFor(LocalDate.of(2026, 3, 9)).size());
-        Assertions.assertEquals(4, weekSchedule.occurrencesFor(LocalDate.of(2026, 3, 10)).size());
-        Assertions.assertEquals(4, weekSchedule.occurrencesFor(LocalDate.of(2026, 3, 11)).size());
-        Assertions.assertEquals(2, weekSchedule.occurrencesFor(LocalDate.of(2026, 3, 12)).size());
-        Assertions.assertEquals(1, weekSchedule.occurrencesFor(LocalDate.of(2026, 3, 13)).size());
+        Assertions.assertEquals(0, weekSchedule.occurrencesFor(LocalDate.of(2026, 3, 10)).size());
+        Assertions.assertEquals(1, weekSchedule.occurrencesFor(LocalDate.of(2026, 3, 11)).size());
+        Assertions.assertEquals(0, weekSchedule.occurrencesFor(LocalDate.of(2026, 3, 12)).size());
+        Assertions.assertEquals(0, weekSchedule.occurrencesFor(LocalDate.of(2026, 3, 13)).size());
     }
 
     @Test
     void shouldBuildTodaySummary() {
-        TodaySummary summary = scheduleService.buildTodaySummary(LocalDate.of(2026, 3, 12));
+        TodaySummary summary = scheduleService.buildTodaySummary(LocalDate.of(2026, 3, 11));
 
-        Assertions.assertEquals("课程：今天有 2 门", summary.courseSummary());
+        Assertions.assertEquals("课程：今天有 1 门", summary.courseSummary());
         Assertions.assertEquals("自建：0 项", summary.customSummary());
         Assertions.assertEquals("DDL：0 项", summary.deadlineSummary());
     }
@@ -90,9 +94,9 @@ class ScheduleServiceTest {
 
         WeekSchedule weekSchedule = scheduleService.buildWeekSchedule(LocalDate.of(2026, 3, 12), 7);
 
-        Assertions.assertEquals(3, weekSchedule.occurrencesFor(LocalDate.of(2026, 3, 12)).size());
+        Assertions.assertEquals(1, weekSchedule.occurrencesFor(LocalDate.of(2026, 3, 12)).size());
         Assertions.assertEquals(1, weekSchedule.deadlinesFor(LocalDate.of(2026, 3, 12)).size());
-        Assertions.assertTrue(scheduleService.buildMonthTaskCounts(YearMonth.of(2026, 3)).get(LocalDate.of(2026, 3, 12)) >= 4);
+        Assertions.assertTrue(scheduleService.buildMonthTaskCounts(YearMonth.of(2026, 3)).get(LocalDate.of(2026, 3, 12)) >= 2);
         Assertions.assertTrue(scheduleService.buildYearTaskCounts(2026).get(YearMonth.of(2026, 3)) > 0);
     }
 }

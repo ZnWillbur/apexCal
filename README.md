@@ -1,69 +1,75 @@
 # ApexCal
 
-ApexCal is a lightweight JavaFX desktop schedule manager for university students.
+ApexCal 是一个面向高校场景的轻量级桌面日程管理工具（JavaFX + SQLite），用于统一管理课程、自建任务与截止事项。
 
-## Features
+## v0.2.0 主要能力
 
-- Import course data from config/import/class.json and config/import/time.json into the local SQLite database.
-- Manage course tasks, custom tasks, and deadlines in a unified calendar model.
-- Browse schedules in week, month, and year views, with daily agenda drill-down.
-- Create, edit, delete, and review tasks through JavaFX dialogs.
-- Show today summary in the welcome screen and desktop widget.
-- Support system tray, close-to-tray behavior, and optional Windows startup registration.
+- 统一任务模型：课程 / 自建 / DDL 共用同一套存储与展示逻辑。
+- 多视图查看：周视图、月视图、年视图、日程总览。
+- 任务全流程：新增、编辑、删除、详情查看。
+- 欢迎页 + 桌面小窗：展示今日摘要并支持快速入口。
+- 托盘能力：最小化到托盘、从托盘快速打开主界面。
+- 设置页增强：节次编辑、重新加载模板、一键恢复默认模板、开机自启设置。
 
-## Stack
+## 技术栈
 
 - Java 21
 - JavaFX 21.0.2
 - Maven
-- SQLite
+- SQLite（sqlite-jdbc）
 - Jackson
+- JNA / JNA Platform
 
-## Run locally
+## 本地运行
 
 ```powershell
 mvn javafx:run
 ```
 
-## Run the packaged classpath jar
-
-```powershell
-mvn package
-java -jar .\target\apexcal-0.1.0.jar
-```
-
-The `package` phase now writes the `Main-Class` manifest entry and copies runtime dependencies to `target/dependency`, so `java -jar` can be used directly from the repository root.
-
-## Test
+## 测试与构建
 
 ```powershell
 mvn test
+mvn package
+java -jar .\target\apexcal-0.2.0.jar
 ```
 
-## Package for Windows
+说明：`mvn package` 会写入 `Main-Class` 并复制运行时依赖到 `target/dependency`，因此可直接 `java -jar` 启动。
 
-Use the PowerShell helper under packaging/windows:
+## Windows 打包
+
+### 生成 app-image
 
 ```powershell
-.\packaging\windows\package.ps1 -Type app-image
+powershell -ExecutionPolicy Bypass -File .\packaging\windows\package.ps1 -Type app-image
 ```
 
-To build an installer instead of an app image, install WiX Toolset first and then run:
+### 生成 exe 安装包
 
 ```powershell
-.\packaging\windows\package.ps1 -Type exe
+powershell -ExecutionPolicy Bypass -File .\packaging\windows\package.ps1 -Type exe
 ```
 
-Note: on JDK 21, `jpackage` still looks for `candle.exe` and `light.exe`. WiX 6 by itself is not enough. Install WiX 3.14 alongside WiX 6 before generating `exe` or `msi`. The packaging script will automatically detect the default WiX 3.14 install directory on Windows, so a manual PATH change is usually not required.
+注意：JDK 21 的 `jpackage` 在 Windows 下生成 `exe/msi` 仍依赖 WiX 3（`candle.exe` 与 `light.exe`）。仅安装 WiX 6 不足以完成安装包构建。
 
-Detailed delivery notes are in docs/windows-delivery.md.
+## 模板与数据库说明
 
-## Data directory
+- 运行时真实数据由 SQLite 数据库管理。
+- `config/import/` 是“可选外部模板入口”，用于批量导入或覆盖模板。
+- 若外部模板不存在，系统自动回退到程序内置模板（`src/main/resources/config`）。
+- 设置页按钮语义：
+	- `重新加载`：优先加载 `config/import/*.json`。
+	- `恢复默认`：强制使用内置模板。
 
-On Windows, runtime data is stored under:
+## 运行数据目录
+
+Windows 下，应用数据默认位于：
 
 ```text
 %LOCALAPPDATA%\ApexCal\data
 ```
 
-Editable course import samples kept in the repository are now under `config/import/`. Packaging icons are under `packaging/windows/assets/`.
+## 文档
+
+- 交付与打包文档：`docs/windows-delivery.md`
+- 技术说明文档：`docs/project-technical-guide.md`

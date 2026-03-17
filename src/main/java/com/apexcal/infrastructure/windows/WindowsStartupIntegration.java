@@ -29,6 +29,10 @@ public final class WindowsStartupIntegration {
         if (!isSupported()) {
             throw new IllegalStateException("当前系统不支持 Windows 开机自启");
         }
+        boolean currentlyEnabled = isEnabled();
+        if (currentlyEnabled == enabled) {
+            return;
+        }
         if (enabled) {
             enable();
         } else {
@@ -50,8 +54,11 @@ public final class WindowsStartupIntegration {
     }
 
     private void disable() {
+        if (!isEnabled()) {
+            return;
+        }
         CommandResult result = runCommand(List.of("reg", "delete", RUN_KEY, "/v", VALUE_NAME, "/f"));
-        if (result.exitCode() != 0 && !result.output().contains("Unable to find")) {
+        if (result.exitCode() != 0) {
             throw new IllegalStateException("移除开机自启失败: " + result.output());
         }
     }

@@ -1,332 +1,243 @@
-# ApexCal Technical Guide
+# ApexCal 技术指南（v0.2.0）
 
-## 1. Project goals
+## 1. 项目目标
 
-This project is a Windows-first desktop schedule manager for university students. The delivered build supports:
+ApexCal 是一个面向 Windows 桌面的课程与任务管理应用，核心目标是把课程、自建任务、DDL 截止事项统一到同一套日历模型中，提供稳定的本地离线体验。
 
-- welcome screen and today summary
-- SQLite-based local persistence
-- imported course data from JSON
-- custom task and deadline CRUD
-- week, month, year, and daily agenda views
-- system tray and floating desktop widget
-- Windows startup registration
-- app-image and exe packaging
+当前版本支持：
 
-## 2. Toolchain and libraries
+- 欢迎页与今日摘要
+- SQLite 本地持久化
+- 周 / 月 / 年 / 日维度查看
+- 课程 / 自建 / DDL 统一增删改查
+- 托盘与桌面小窗
+- 开机自启配置
+- app-image 与 exe 打包交付
 
-### Core runtime
+## 2. 技术栈
+
+### 运行时
 
 - Java 21
 - JavaFX 21.0.2
 - Maven 3.9+
 
-### Data and persistence
+### 数据层
 
-- SQLite via `sqlite-jdbc`
-- Jackson `jackson-databind`
-- Jackson `jackson-datatype-jsr310` for Java Time serialization
+- SQLite（`sqlite-jdbc`）
+- Jackson（`jackson-databind` + `jackson-datatype-jsr310`）
 
-### Platform integration
+### 平台集成
 
-- JNA and JNA Platform for Windows integration
-- `jpackage` from JDK 21
-- WiX 3.14 for Windows `exe` and `msi`
+- JNA / JNA Platform（Windows 集成）
+- JDK 21 `jpackage`
+- WiX 3.14（仅 `exe/msi` 打包需要）
 
-### Logging and tests
+### 日志与测试
 
 - SLF4J + Logback
 - JUnit 5
 
-## 3. Repository layout
+## 3. 目录结构
 
-### Source code
+### 源码目录
 
-- `src/main/java`: application, domain, infrastructure, presentation code
-- `src/main/resources`: FXML, CSS, SQL schema, bundled default config JSON
-- `src/test/java`: service tests and JavaFX smoke test
+- `src/main/java`：启动层、服务层、领域层、持久化层、UI 层
+- `src/main/resources`：FXML、CSS、SQL、内置默认模板
+- `src/test/java`：服务测试与 JavaFX 烟雾测试
 
-### Repository-managed external assets
+### 模板与文档目录
 
-- `config/import/class.json`: editable course import sample
-- `config/import/time.json`: editable section template sample
-- `packaging/windows/assets`: Windows packaging icons
-- `docs`: delivery and technical documentation
+- `config/import/class.json`：外部课程模板样例
+- `config/import/time.json`：外部节次模板样例
+- `docs`：交付文档与技术文档
 
-### Generated output
+### 构建与交付产物
 
-- `target/apexcal-0.1.0.jar`: main runnable jar
-- `target/dependency`: runtime dependency jars copied during `mvn package`
-- `packaging/windows/dist`: packaged Windows output
+- `target/apexcal-0.2.0.jar`
+- `target/dependency/`
+- `packaging/windows/dist/`
 
-## 4. Architecture and responsibility split
+## 4. 分层设计
 
-### Bootstrap layer
+### 启动层（Bootstrap）
 
 - `com.apexcal.bootstrap.AppLauncher`
 - `com.apexcal.bootstrap.ApexCalApplication`
 
-Responsibilities:
+职责：
 
-- create JavaFX application
-- create service/config/tray/widget instances
-- switch between welcome screen and main window
+- 启动 JavaFX
+- 初始化服务与窗口管理组件
+- 欢迎页与主窗口切换
 
-### Application services
+### 应用服务层（Application Service）
 
 - `ScheduleService`
 - `AppConfigService`
 
-Responsibilities:
+职责：
 
-- bootstrap database and default data
-- import and normalize JSON course data
-- expose unified task CRUD APIs
-- compute week/month/year views
-- expose startup and app configuration state
+- 初始化数据库与默认数据
+- 模板导入与标准化
+- 任务统一 CRUD
+- 周/月/年统计与聚合
+- 开机自启状态读写
 
-### Domain model
+### 领域模型层（Domain）
 
-- `TaskItem`, `TaskDraft`, `TaskOccurrence`
-- `TaskType`, `TaskSource`, `TaskStatus`
-- `SemesterConfig`, `WeekSchedule`, `TimeSection`
+- `TaskItem` / `TaskDraft` / `TaskOccurrence`
+- `TaskType` / `TaskSource` / `TaskStatus`
+- `SemesterConfig` / `WeekSchedule` / `TimeSection`
 
-Responsibilities:
+职责：
 
-- represent persisted tasks and computed occurrences
-- separate imported courses, custom tasks, and deadlines
-- keep calendar calculations independent of JavaFX
+- 描述任务实体与日历出现规则
+- 保持业务逻辑与 UI 解耦
 
-### Persistence layer
+### 持久化层（Persistence）
 
 - `DatabaseManager`
 - `SQLiteTaskRepository`
 - `SQLiteConfigRepository`
 
-Responsibilities:
+职责：
 
-- initialize schema
-- save task rows and schedule rows
-- store task history snapshots
-- store semester and app configuration
+- 表结构初始化
+- 任务与配置存储
+- 历史快照记录
 
-### Presentation layer
+### 展示层（Presentation）
 
-- FXML controllers for welcome and main window
-- JavaFX dialogs for task form, overview, settings, day/month/year views
+- 主窗口、欢迎页控制器
+- 各类 JavaFX 对话框（任务、设置、月/年/日视图）
 - `DesktopWidgetManager`
 - `AppTrayManager`
 
-Responsibilities:
+职责：
 
-- display schedules and task detail
-- create/edit/delete tasks
-- show tray and widget entry points
+- 视图呈现与交互事件
+- 从服务层读取/写入数据
 
-## 5. Data flow
+## 5. 模板与数据库的数据关系
 
-### Course import path
+### 核心原则
 
-1. `ScheduleService` checks `config/import/class.json` and `config/import/time.json`.
-2. If external files exist, they are parsed with Jackson.
-3. If they do not exist, bundled defaults under `src/main/resources/config` are used.
-4. Imported course rows are converted to `TaskItem` records with `TaskSource.IMPORTED_CLASS_JSON`.
-5. They are persisted into SQLite and later expanded into week/day occurrences.
+- **数据库是运行时唯一真实数据源**。
+- `config/import` 仅作为“外部模板入口”，用于批量导入初始化数据。
 
-### User task path
+### 导入规则
 
-1. JavaFX dialogs create a `TaskDraft`.
-2. `ScheduleService` converts it to `TaskItem`.
-3. `SQLiteTaskRepository` writes base task data, schedule data, and history snapshots.
-4. View models and dialogs read unified task data from the service layer.
+1. 外部优先模式：`reloadExternalCourseData()`
+   - 优先读取 `config/import/class.json` 与 `config/import/time.json`
+   - 若文件不存在则自动回退到内置模板
+2. 内置默认模式：`restoreBundledDefaults()`
+   - 强制使用 `src/main/resources/config/*` 内置模板
 
-## 6. Important implementation decisions
+### 设置页按钮语义
 
-### Why a unified task model was used
+- `重新加载`：走外部优先模式
+- `恢复默认`：走内置默认模式
 
-Early UI logic treated imported courses separately from user tasks. That caused drift when persistence and editing features expanded. The current code uses a unified `TaskItem` model so that week view, dialogs, overview tables, and persistence all work through one API surface.
+## 6. 关键实现决策
 
-### Why a shared ObjectMapper factory was introduced
+### 统一任务模型
 
-Task history snapshots include `LocalDateTime`. Default Jackson configuration cannot serialize Java Time types correctly. `ObjectMapperFactory` centralizes `findAndRegisterModules()` and disables timestamp serialization, which fixed persistence and test failures.
+课程、自建、DDL 均落到统一 `TaskItem`，避免 UI 与存储层出现多套分叉逻辑。
 
-### Why tray icon is drawn programmatically
+### ObjectMapper 工厂统一配置
 
-The runtime tray icon is generated in code instead of loading an external image. This avoids runtime image-path issues. External `.ico` files are now used only for Windows packaging.
+通过 `ObjectMapperFactory` 统一注册 Java Time 模块，确保快照与历史记录序列化稳定。
 
-## 7. Build and run flows
+### 开机自启幂等处理
 
-### Fast development run
+在执行启用/禁用前先读取当前状态，避免“未启用却执行移除”导致的误报。
 
-Use this when editing UI or service code:
+## 7. 开发与运行流程
+
+### 开发模式运行
 
 ```powershell
 mvn javafx:run
 ```
 
-What it does:
-
-- compiles main sources
-- resolves JavaFX runtime dependencies
-- launches the app through the JavaFX Maven plugin
-
-### Runnable jar flow
-
-Use this when you want a plain Maven build and a command-line run without `javafx:run`:
+### 构建与可执行 JAR
 
 ```powershell
 mvn package
-java -jar .\target\apexcal-0.1.0.jar
+java -jar .\target\apexcal-0.2.0.jar
 ```
 
-What changed to make this work:
+`maven-jar-plugin` 已写入 `Main-Class`，`maven-dependency-plugin` 会复制运行时依赖到 `target/dependency`。
 
-- `maven-jar-plugin` now writes `Main-Class` into the manifest
-- `maven-dependency-plugin` copies runtime dependencies to `target/dependency`
-- the jar manifest includes a relative classpath pointing to `dependency/`
+## 8. 测试策略
 
-That means `java -jar` works from the repository root after `mvn package`.
-
-### Why `java -jar` failed before
-
-Before this change, the jar had no `Main-Class` manifest entry, so the JVM reported:
-
-```text
-no main manifest attribute
-```
-
-Even after adding a main class, a JavaFX app still needs runtime dependencies available. That is why the build now also copies dependency jars automatically during `package`.
-
-## 8. Testing strategy
-
-### Test commands
-
-Run the full test suite:
+### 自动化测试
 
 ```powershell
 mvn test
 ```
 
-Create the runnable jar and dependencies:
+覆盖包括：
+
+- `ScheduleServiceTest`：导入、周视图生成、摘要、统计、任务持久化
+- `FxSmokeTest`：JavaFX 主界面初始化可用性
+
+### 手工回归建议
+
+1. 启动欢迎页检查摘要
+2. 检查周/月/年视图切换
+3. 创建并编辑自建任务
+4. 创建并编辑 DDL 任务
+5. 验证托盘与桌面小窗
+6. 验证设置页“重新加载/恢复默认/节次编辑”
+
+## 9. Windows 打包流程
+
+### app-image
 
 ```powershell
-mvn package
+powershell -ExecutionPolicy Bypass -File .\packaging\windows\package.ps1 -Type app-image
 ```
 
-Run the packaged jar:
+### exe
 
 ```powershell
-java -jar .\target\apexcal-0.1.0.jar
+powershell -ExecutionPolicy Bypass -File .\packaging\windows\package.ps1 -Type exe
 ```
 
-### Current automated tests
+产物输出：`packaging/windows/dist`
 
-- `ScheduleServiceTest`
-  - verifies semester config bootstrap
-  - verifies imported course counts
-  - verifies weekly occurrence generation
-  - verifies today summary
-  - verifies custom task and deadline persistence and calendar counts
+### WiX 注意事项
 
-- `FxSmokeTest`
-  - initializes the JavaFX toolkit
-  - loads `main-window.fxml`
-  - constructs the controller and service objects
-  - verifies the main window can initialize without runtime exceptions
+- JDK 21 `jpackage` 构建安装包依赖 WiX 3 工具（`candle.exe` / `light.exe`）
+- 仅 WiX 6 不足以生成 `exe/msi`
 
-### Practical manual test path
+## 10. 常见问题
 
-Recommended order:
+### `java -jar` 报无主清单
 
-1. Run `mvn test`.
-2. Run `mvn javafx:run`.
-3. Verify welcome screen summary.
-4. Open the main window and check week view rendering.
-5. Create, edit, and delete one custom task.
-6. Create, edit, and delete one deadline.
-7. Open daily, month, and year views.
-8. Verify tray close-to-hide behavior.
-9. Verify desktop widget refresh after task changes.
-
-## 9. Windows packaging flow
-
-### App image
+执行：
 
 ```powershell
-.\packaging\windows\package.ps1 -Type app-image
+mvn clean package
 ```
 
-Output:
+### `jpackage` 找不到 WiX 工具
 
-- `packaging/windows/dist/ApexCal/`
+安装 WiX 3.14，并确保脚本可探测到其 `bin` 目录。
 
-### EXE installer
+### 打包版与仓库直跑行为有差异
 
-```powershell
-.\packaging\windows\package.ps1 -Type exe
-```
+这是预期现象：打包版使用 `jpackage` 运行时镜像，仓库直跑依赖 `target/dependency` 与开发目录结构。
 
-Output:
-
-- `packaging/windows/dist/ApexCal-0.1.0.exe`
-
-### Packaging script behavior
-
-The script:
-
-1. reads `pom.xml` for artifact metadata
-2. runs `mvn clean package`
-3. prepares `target/jpackage-input`
-4. auto-detects WiX 3.14 from default install directories if it is not already on `PATH`
-5. calls `jpackage`
-6. writes output into `packaging/windows/dist`
-
-### WiX and JDK compatibility note
-
-JDK 21 `jpackage` still expects WiX 3 style tools `candle.exe` and `light.exe`. WiX 6 alone is not sufficient. WiX 6 can stay installed, but WiX 3.14 must also be present for `exe` and `msi` generation.
-
-## 10. Resource relocation summary
-
-These files were intentionally moved out of the workspace root:
-
-- JSON import samples moved to `config/import/`
-- Windows icons moved to `packaging/windows/assets/`
-
-This keeps the root focused on source, build, and documentation files.
-
-## 11. Troubleshooting
-
-### `java -jar` says there is no main manifest attribute
-
-Run:
-
-```powershell
-mvn package
-```
-
-Then try again:
-
-```powershell
-java -jar .\target\apexcal-0.1.0.jar
-```
-
-If the old jar was built before the manifest fix, delete `target/` or run `mvn clean package`.
-
-### `jpackage` cannot find WiX tools
-
-Install WiX 3.14. If it is installed in its default directory, the helper script should detect it automatically. If you call `jpackage` manually, add WiX 3.14 `bin` to `PATH` for that shell session.
-
-### `java -jar` works differently from the packaged exe
-
-That is expected. The jar run depends on `target/dependency/` and repository-relative paths. The packaged exe runs from the `jpackage` application image and embeds the runtime separately.
-
-## 12. Recommended developer command set
+## 11. 常用命令清单
 
 ```powershell
 mvn test
 mvn javafx:run
 mvn package
-java -jar .\target\apexcal-0.1.0.jar
-.\packaging\windows\package.ps1 -Type app-image
-.\packaging\windows\package.ps1 -Type exe
+java -jar .\target\apexcal-0.2.0.jar
+powershell -ExecutionPolicy Bypass -File .\packaging\windows\package.ps1 -Type app-image
+powershell -ExecutionPolicy Bypass -File .\packaging\windows\package.ps1 -Type exe
 ```

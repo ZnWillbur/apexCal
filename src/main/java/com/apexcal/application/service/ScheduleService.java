@@ -77,6 +77,19 @@ public final class ScheduleService {
     private final TaskRepository taskRepository;
     private final ConfigRepository configRepository;
 
+        public record MonthOverview(
+            Map<LocalDate, Integer> totalCounts,
+            Map<LocalDate, Integer> deadlineCounts,
+            int totalTasks,
+            int maxDailyTasks) {
+        }
+
+        public record YearOverview(
+            Map<YearMonth, Integer> monthlyCounts,
+            int totalTasks,
+            int maxMonthlyTasks) {
+        }
+
     public ScheduleService() {
         this(AppDirectories.dataDirectory());
     }
@@ -169,43 +182,76 @@ public final class ScheduleService {
     }
 
     public Map<LocalDate, Integer> buildMonthTaskCounts(YearMonth month) {
-        Map<LocalDate, Integer> counts = new LinkedHashMap<>();
-        LocalDate current = month.atDay(1);
-        LocalDate end = month.atEndOfMonth();
-        while (!current.isAfter(end)) {
-            counts.put(current, totalTaskCountForDate(current));
-            current = current.plusDays(1);
-        }
-        return counts;
+        return buildMonthOverview(month).totalCounts();
     }
 
     public Map<YearMonth, Integer> buildYearTaskCounts(int year) {
-        Map<YearMonth, Integer> counts = new LinkedHashMap<>();
+        return buildYearOverview(year).monthlyCounts();
+    }
+
+    public MonthOverview buildMonthOverview(YearMonth month) {
+        List<TaskItem> tasks = taskRepository.findAllActive();
+        SemesterConfig config = getSemesterConfig();
+        return buildMonthOverview(month, tasks, config);
+    }
+
+    public YearOverview buildYearOverview(int year) {
+        List<TaskItem> tasks = taskRepository.findAllActive();
+        SemesterConfig config = getSemesterConfig();
+
+        Map<YearMonth, Integer> monthlyCounts = new LinkedHashMap<>();
+        int totalTasks = 0;
+        int maxMonthlyTasks = 0;
         for (int monthValue = 1; monthValue <= 12; monthValue++) {
             YearMonth month = YearMonth.of(year, monthValue);
-            counts.put(month, buildMonthTaskCounts(month).values().stream().mapToInt(Integer::intValue).sum());
+            MonthOverview monthOverview = buildMonthOverview(month, tasks, config);
+            int monthlyTotal = monthOverview.totalTasks();
+            monthlyCounts.put(month, monthlyTotal);
+            totalTasks += monthlyTotal;
+            maxMonthlyTasks = Math.max(maxMonthlyTasks, monthlyTotal);
         }
-        return counts;
+        return new YearOverview(monthlyCounts, totalTasks, maxMonthlyTasks);
     }
 
     public SemesterConfig updateFirstMonday(LocalDate firstMonday) {
+        return updateSemesterConfig(firstMonday, getSemesterConfig().sections());
+    }
+
+    public SemesterConfig updateSemesterConfig(LocalDate firstMonday, List<TimeSection> sections) {
         SemesterConfig current = getSemesterConfig();
         SemesterConfig updated = new SemesterConfig(
                 current.semesterName(),
                 firstMonday,
                 current.totalWeeks(),
                 current.weekViewDays(),
-                current.sections());
+                sections);
         configRepository.saveSemesterConfig(updated);
         return updated;
     }
 
     public void reloadExternalCourseData() {
-        ImportedSchedule importedSchedule = loadImportedSchedule();
+        ImportedSchedule importedSchedule = loadImportedSchedule(true);
+        applyImportedSchedule(importedSchedule);
+    }
+
+    public void restoreBundledDefaults() {
+        ImportedSchedule importedSchedule = loadImportedSchedule(false);
+        applyImportedSchedule(importedSchedule);
+    }
+
+    private void applyImportedSchedule(ImportedSchedule importedSchedule) {
         configRepository.saveSemesterConfig(importedSchedule.config());
         taskRepository.deleteByTypeAndSource(TaskType.COURSE, TaskSource.IMPORTED_CLASS_JSON);
+        taskRepository.deleteByTypeAndSource(TaskType.CUSTOM, TaskSource.IMPORTED_CLASS_JSON);
+        taskRepository.deleteByTypeAndSource(TaskType.DDL, TaskSource.IMPORTED_CLASS_JSON);
         for (CourseTask course : importedSchedule.courses()) {
             taskRepository.save(toImportedTask(course, importedSchedule.sectionLookup()));
+        }
+        for (TemplateCustomTask customTask : importedSchedule.customTasks()) {
+            taskRepository.save(toImportedCustomTask(customTask));
+        }
+        for (TemplateDeadlineTask deadlineTask : importedSchedule.deadlineTasks()) {
+            taskRepository.save(toImportedDeadlineTask(deadlineTask));
         }
     }
 
@@ -244,13 +290,19 @@ public final class ScheduleService {
 
     private void bootstrap() {
         if (configRepository.loadSemesterConfig().isEmpty()) {
-            ImportedSchedule importedSchedule = loadImportedSchedule();
+            ImportedSchedule importedSchedule = loadImportedSchedule(true);
             configRepository.saveSemesterConfig(importedSchedule.config());
         }
         if (taskRepository.countByTypeAndSource(TaskType.COURSE, TaskSource.IMPORTED_CLASS_JSON) == 0) {
-            ImportedSchedule importedSchedule = loadImportedSchedule();
+            ImportedSchedule importedSchedule = loadImportedSchedule(true);
             for (CourseTask course : importedSchedule.courses()) {
                 taskRepository.save(toImportedTask(course, importedSchedule.sectionLookup()));
+            }
+            for (TemplateCustomTask customTask : importedSchedule.customTasks()) {
+                taskRepository.save(toImportedCustomTask(customTask));
+            }
+            for (TemplateDeadlineTask deadlineTask : importedSchedule.deadlineTasks()) {
+                taskRepository.save(toImportedDeadlineTask(deadlineTask));
             }
         }
     }
@@ -350,6 +402,44 @@ public final class ScheduleService {
                 .toList();
     }
 
+    private MonthOverview buildMonthOverview(YearMonth month, List<TaskItem> tasks, SemesterConfig config) {
+        Map<LocalDate, Integer> totalCounts = new LinkedHashMap<>();
+        Map<LocalDate, Integer> deadlineCounts = new LinkedHashMap<>();
+
+        LocalDate current = month.atDay(1);
+        LocalDate end = month.atEndOfMonth();
+        int totalTasks = 0;
+        int maxDailyTasks = 0;
+
+        while (!current.isAfter(end)) {
+            int weekNumber = weekCalculationService.academicWeekNumber(current, config.firstMonday());
+            int occurrenceCount = 0;
+            int deadlineCount = 0;
+
+            for (TaskItem task : tasks) {
+                if (task.isDeadline()) {
+                    if (task.dueAt() != null && task.dueAt().toLocalDate().equals(current)) {
+                        deadlineCount++;
+                    }
+                    continue;
+                }
+                if (occursOnDate(task, current, weekNumber)) {
+                    occurrenceCount++;
+                }
+            }
+
+            int dailyTotal = occurrenceCount + deadlineCount;
+            totalCounts.put(current, dailyTotal);
+            deadlineCounts.put(current, deadlineCount);
+            totalTasks += dailyTotal;
+            maxDailyTasks = Math.max(maxDailyTasks, dailyTotal);
+
+            current = current.plusDays(1);
+        }
+
+        return new MonthOverview(totalCounts, deadlineCounts, totalTasks, maxDailyTasks);
+    }
+
     private boolean occursOnDate(TaskItem task, LocalDate date, int weekNumber) {
         if (task.type() == TaskType.COURSE) {
             return task.weekday() == date.getDayOfWeek() && WeekPattern.parse(task.weekPattern()).contains(weekNumber);
@@ -360,10 +450,10 @@ public final class ScheduleService {
         return false;
     }
 
-    private ImportedSchedule loadImportedSchedule() {
+    private ImportedSchedule loadImportedSchedule(boolean preferExternalTemplate) {
         try {
-            List<TimeSection> sections = loadSections();
-            JsonNode classRoot = loadClassRoot();
+            List<TimeSection> sections = loadSections(preferExternalTemplate);
+            JsonNode classRoot = loadClassRoot(preferExternalTemplate);
             LocalDate firstMonday = parseDate(classRoot.path("semester_start_monday").asText());
             List<CourseTask> courses = new ArrayList<>();
             for (JsonNode courseNode : classRoot.path("courses")) {
@@ -379,6 +469,35 @@ public final class ScheduleService {
                         courseNode.path("enrollment").asInt()));
             }
             courses.sort(Comparator.comparing(CourseTask::weekday).thenComparingInt(CourseTask::startSection));
+
+            List<TemplateCustomTask> customTasks = new ArrayList<>();
+            int customIndex = 1;
+            for (JsonNode customNode : classRoot.path("custom_tasks")) {
+                customTasks.add(new TemplateCustomTask(
+                        valueOrDefault(customNode.path("title").asText(null), "自建任务 " + customIndex),
+                        parseDate(customNode.path("date").asText()),
+                        parseTime(customNode.path("start_time").asText()),
+                        parseTime(customNode.path("end_time").asText()),
+                        valueOrDefault(customNode.path("location").asText(null), ""),
+                        valueOrDefault(customNode.path("note").asText(null), ""),
+                        normalizePriority(customNode.path("priority").asInt(3)),
+                        valueOrDefault(customNode.path("color").asText(null), defaultColor(TaskType.CUSTOM))));
+                customIndex++;
+            }
+
+            List<TemplateDeadlineTask> deadlineTasks = new ArrayList<>();
+            int ddlIndex = 1;
+            for (JsonNode ddlNode : classRoot.path("ddl_tasks")) {
+                deadlineTasks.add(new TemplateDeadlineTask(
+                        valueOrDefault(ddlNode.path("title").asText(null), "DDL 任务 " + ddlIndex),
+                        parseDateTime(ddlNode.path("due_at").asText()),
+                        valueOrDefault(ddlNode.path("location").asText(null), ""),
+                        valueOrDefault(ddlNode.path("note").asText(null), ""),
+                        normalizePriority(ddlNode.path("priority").asInt(4)),
+                        valueOrDefault(ddlNode.path("color").asText(null), defaultColor(TaskType.DDL))));
+                ddlIndex++;
+            }
+
             Map<Integer, TimeSection> sectionLookup = sections.stream().collect(Collectors.toMap(TimeSection::section, section -> section));
             SemesterConfig config = new SemesterConfig(
                     buildSemesterName(firstMonday),
@@ -386,7 +505,7 @@ public final class ScheduleService {
                     20,
                     7,
                     sections);
-            return new ImportedSchedule(config, courses, sectionLookup);
+            return new ImportedSchedule(config, courses, sectionLookup, customTasks, deadlineTasks);
         } catch (IOException exception) {
             throw new IllegalStateException("无法加载课程导入数据", exception);
         }
@@ -428,9 +547,59 @@ public final class ScheduleService {
                 1);
     }
 
-    private JsonNode loadClassRoot() throws IOException {
+    private TaskItem toImportedCustomTask(TemplateCustomTask task) {
+        LocalDateTime now = LocalDateTime.now();
+        return new TaskItem(
+                buildImportedCustomUuid(task),
+                TaskType.CUSTOM,
+                TaskSource.IMPORTED_CLASS_JSON,
+                task.title(),
+                task.note(),
+                task.location(),
+                normalizeColor(task.colorHex(), TaskType.CUSTOM),
+                "{}",
+                TaskStatus.ACTIVE,
+                task.priority(),
+                task.date().getDayOfWeek(),
+                toMinute(task.startTime()),
+                toMinute(task.endTime()),
+                "",
+                task.date(),
+                task.date(),
+                null,
+                now,
+                now,
+                1);
+    }
+
+    private TaskItem toImportedDeadlineTask(TemplateDeadlineTask task) {
+        LocalDateTime now = LocalDateTime.now();
+        return new TaskItem(
+                buildImportedDeadlineUuid(task),
+                TaskType.DDL,
+                TaskSource.IMPORTED_CLASS_JSON,
+                task.title(),
+                task.note(),
+                task.location(),
+                normalizeColor(task.colorHex(), TaskType.DDL),
+                "{}",
+                TaskStatus.ACTIVE,
+                task.priority(),
+                null,
+                null,
+                null,
+                "",
+                null,
+                null,
+                task.dueAt(),
+                now,
+                now,
+                1);
+    }
+
+    private JsonNode loadClassRoot(boolean preferExternalTemplate) throws IOException {
         Path classFile = resolveExternalFile("class.json");
-        if (Files.exists(classFile)) {
+        if (preferExternalTemplate && Files.exists(classFile)) {
             return objectMapper.readTree(Files.newBufferedReader(classFile));
         }
         return loadBundledClassData();
@@ -450,10 +619,10 @@ public final class ScheduleService {
         }
     }
 
-    private List<TimeSection> loadSections() throws IOException {
+    private List<TimeSection> loadSections(boolean preferExternalTemplate) throws IOException {
         Path timeFile = resolveExternalFile("time.json");
         JsonNode timeRoot;
-        if (Files.exists(timeFile)) {
+        if (preferExternalTemplate && Files.exists(timeFile)) {
             timeRoot = objectMapper.readTree(Files.newBufferedReader(timeFile));
         } else {
             try (InputStream inputStream = Thread.currentThread()
@@ -510,6 +679,60 @@ public final class ScheduleService {
         throw new IllegalArgumentException("Unsupported semester start date: " + raw);
     }
 
+    private LocalTime parseTime(String raw) {
+        String normalized = raw == null ? "" : raw.trim();
+        if (normalized.isBlank()) {
+            throw new IllegalArgumentException("时间不能为空");
+        }
+        try {
+            return LocalTime.parse(normalized);
+        } catch (DateTimeParseException ignored) {
+        }
+        try {
+            return LocalTime.parse(normalized, new DateTimeFormatterBuilder()
+                    .appendValue(ChronoField.HOUR_OF_DAY)
+                    .appendLiteral(':')
+                    .appendValue(ChronoField.MINUTE_OF_HOUR)
+                    .toFormatter(Locale.ROOT));
+        } catch (DateTimeParseException ignored) {
+        }
+        throw new IllegalArgumentException("Unsupported time: " + raw);
+    }
+
+    private LocalDateTime parseDateTime(String raw) {
+        String normalized = raw == null ? "" : raw.trim();
+        if (normalized.isBlank()) {
+            throw new IllegalArgumentException("截止时间不能为空");
+        }
+
+        try {
+            return LocalDateTime.parse(normalized);
+        } catch (DateTimeParseException ignored) {
+        }
+
+        try {
+            return LocalDateTime.parse(normalized.replace('T', ' '), new DateTimeFormatterBuilder()
+                    .appendValue(ChronoField.YEAR, 4)
+                    .appendLiteral('-')
+                    .appendValue(ChronoField.MONTH_OF_YEAR)
+                    .appendLiteral('-')
+                    .appendValue(ChronoField.DAY_OF_MONTH)
+                    .appendLiteral(' ')
+                    .appendValue(ChronoField.HOUR_OF_DAY)
+                    .appendLiteral(':')
+                    .appendValue(ChronoField.MINUTE_OF_HOUR)
+                    .toFormatter(Locale.ROOT));
+        } catch (DateTimeParseException ignored) {
+        }
+
+        try {
+            return LocalDateTime.of(parseDate(normalized.substring(0, normalized.indexOf(' '))), parseTime(normalized.substring(normalized.indexOf(' ') + 1)));
+        } catch (Exception ignored) {
+        }
+
+        throw new IllegalArgumentException("Unsupported due_at datetime: " + raw);
+    }
+
     private DayOfWeek parseWeekday(String raw) {
         return switch (raw) {
             case "星期一" -> DayOfWeek.MONDAY;
@@ -548,9 +771,63 @@ public final class ScheduleService {
         return UUID.nameUUIDFromBytes(seed.getBytes(java.nio.charset.StandardCharsets.UTF_8)).toString();
     }
 
+    private String buildImportedCustomUuid(TemplateCustomTask task) {
+        String seed = "CUSTOM|"
+                + task.title()
+                + "|" + task.date()
+                + "|" + task.startTime()
+                + "|" + task.endTime()
+                + "|" + task.location();
+        return UUID.nameUUIDFromBytes(seed.getBytes(java.nio.charset.StandardCharsets.UTF_8)).toString();
+    }
+
+    private String buildImportedDeadlineUuid(TemplateDeadlineTask task) {
+        String seed = "DDL|"
+                + task.title()
+                + "|" + task.dueAt()
+                + "|" + task.location();
+        return UUID.nameUUIDFromBytes(seed.getBytes(java.nio.charset.StandardCharsets.UTF_8)).toString();
+    }
+
+    private int normalizePriority(int priority) {
+        if (priority < 1) {
+            return 1;
+        }
+        return Math.min(priority, 5);
+    }
+
+    private String valueOrDefault(String raw, String fallback) {
+        if (raw == null || raw.isBlank()) {
+            return fallback;
+        }
+        return raw.trim();
+    }
+
     private record ImportedSchedule(
             SemesterConfig config,
             List<CourseTask> courses,
-            Map<Integer, TimeSection> sectionLookup) {
+            Map<Integer, TimeSection> sectionLookup,
+            List<TemplateCustomTask> customTasks,
+            List<TemplateDeadlineTask> deadlineTasks) {
+    }
+
+    private record TemplateCustomTask(
+            String title,
+            LocalDate date,
+            LocalTime startTime,
+            LocalTime endTime,
+            String location,
+            String note,
+            int priority,
+            String colorHex) {
+    }
+
+    private record TemplateDeadlineTask(
+            String title,
+            LocalDateTime dueAt,
+            String location,
+            String note,
+            int priority,
+            String colorHex) {
     }
 }

@@ -3,6 +3,7 @@ package com.apexcal.presentation.widget;
 import com.apexcal.application.service.ScheduleService;
 import com.apexcal.domain.task.TaskItem;
 import com.apexcal.domain.task.TaskOccurrence;
+import com.apexcal.presentation.window.AppIconFactory;
 import java.net.URL;
 import java.time.LocalDate;
 import java.time.format.DateTimeFormatter;
@@ -12,6 +13,7 @@ import javafx.scene.Scene;
 import javafx.scene.control.ContextMenu;
 import javafx.scene.control.Label;
 import javafx.scene.control.MenuItem;
+import javafx.scene.control.ScrollPane;
 import javafx.scene.layout.VBox;
 import javafx.scene.paint.Color;
 import javafx.stage.Screen;
@@ -26,6 +28,7 @@ public final class DesktopWidgetManager {
 
     private Stage stage;
     private VBox listBox;
+    private ScrollPane listScrollPane;
     private Label summaryLabel;
     private boolean suppressed;
     private double dragOffsetX;
@@ -127,7 +130,15 @@ public final class DesktopWidgetManager {
         summaryLabel.getStyleClass().add("widget-summary");
 
         listBox = new VBox(8);
-        VBox root = new VBox(12, titleLabel, summaryLabel, listBox);
+        listScrollPane = new ScrollPane(listBox);
+        listScrollPane.setFitToWidth(true);
+        listScrollPane.setPannable(true);
+        listScrollPane.setHbarPolicy(ScrollPane.ScrollBarPolicy.NEVER);
+        listScrollPane.setVbarPolicy(ScrollPane.ScrollBarPolicy.AS_NEEDED);
+        listScrollPane.setPrefViewportHeight(152);
+        listScrollPane.getStyleClass().add("widget-scroll");
+
+        VBox root = new VBox(12, titleLabel, summaryLabel, listScrollPane);
         root.getStyleClass().add("widget-card");
         root.setPadding(new Insets(16));
 
@@ -139,13 +150,13 @@ public final class DesktopWidgetManager {
         }
 
         ContextMenu contextMenu = new ContextMenu();
-        MenuItem openItem = new MenuItem("打开主界面");
+        MenuItem openItem = new MenuItem("Open Main Window");
         openItem.setOnAction(event -> openMainAction.run());
-        MenuItem newTaskItem = new MenuItem("新建任务");
+        MenuItem newTaskItem = new MenuItem("New Task");
         newTaskItem.setOnAction(event -> newTaskAction.run());
-        MenuItem closeWidgetItem = new MenuItem("关闭小窗");
+        MenuItem closeWidgetItem = new MenuItem("Close Widget");
         closeWidgetItem.setOnAction(event -> suppress());
-        MenuItem exitItem = new MenuItem("退出程序");
+        MenuItem exitItem = new MenuItem("Exit");
         exitItem.setOnAction(event -> exitAction.run());
         contextMenu.getItems().addAll(openItem, newTaskItem, closeWidgetItem, exitItem);
 
@@ -161,6 +172,7 @@ public final class DesktopWidgetManager {
 
         stage = new Stage(StageStyle.TRANSPARENT);
         stage.setScene(scene);
+        stage.getIcons().setAll(AppIconFactory.fxIcon());
         stage.setResizable(false);
         stage.setAlwaysOnTop(false);
     }

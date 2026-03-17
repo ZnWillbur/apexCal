@@ -42,7 +42,6 @@ class FxSmokeTest {
                 Parent root = loader.load();
                 MainWindowController controller = loader.getController();
                 controller.init(new ScheduleService(tempDir), new AppConfigService(tempDir), () -> {
-                }, () -> {
                 });
                 Assertions.assertNotNull(root);
             } catch (IOException | RuntimeException exception) {

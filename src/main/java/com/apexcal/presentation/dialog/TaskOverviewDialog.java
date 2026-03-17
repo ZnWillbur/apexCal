@@ -4,7 +4,7 @@ import com.apexcal.application.service.ScheduleService;
 import com.apexcal.domain.task.TaskItem;
 import com.apexcal.domain.task.TaskSource;
 import com.apexcal.domain.task.TaskType;
-import java.net.URL;
+import com.apexcal.presentation.window.WindowTheme;
 import java.time.format.DateTimeFormatter;
 import java.util.List;
 import javafx.beans.property.ReadOnlyStringWrapper;
@@ -160,11 +160,7 @@ public final class TaskOverviewDialog {
     }
 
     private void applyStyles(Dialog<?> dialog) {
-        URL stylesheet = Thread.currentThread().getContextClassLoader().getResource("css/app.css");
-        if (stylesheet != null) {
-            dialog.getDialogPane().getStylesheets().add(stylesheet.toExternalForm());
-        }
-        dialog.getDialogPane().getStyleClass().add("app-dialog");
+        WindowTheme.applyDialogTheme(dialog);
     }
 
     private enum TaskFilter {

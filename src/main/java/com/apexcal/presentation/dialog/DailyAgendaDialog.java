@@ -4,7 +4,7 @@ import com.apexcal.application.service.ScheduleService;
 import com.apexcal.domain.task.TaskItem;
 import com.apexcal.domain.task.TaskOccurrence;
 import com.apexcal.domain.task.TaskType;
-import java.net.URL;
+import com.apexcal.presentation.window.WindowTheme;
 import java.time.LocalDate;
 import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
@@ -155,11 +155,7 @@ public final class DailyAgendaDialog {
     }
 
     private void applyStyles(Dialog<?> dialog) {
-        URL stylesheet = Thread.currentThread().getContextClassLoader().getResource("css/app.css");
-        if (stylesheet != null) {
-            dialog.getDialogPane().getStylesheets().add(stylesheet.toExternalForm());
-        }
-        dialog.getDialogPane().getStyleClass().add("app-dialog");
+        WindowTheme.applyDialogTheme(dialog);
     }
 
     private record AgendaEntry(TaskItem task, String typeLabel, String timeLabel, int sortOrder) {

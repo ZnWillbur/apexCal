@@ -8,6 +8,7 @@
 <?import javafx.scene.layout.GridPane?>
 <?import javafx.scene.layout.HBox?>
 <?import javafx.scene.layout.Region?>
+<?import javafx.scene.layout.StackPane?>
 <?import javafx.scene.layout.VBox?>
 
 <BorderPane fx:controller="com.apexcal.presentation.controller.MainWindowController"
@@ -17,13 +18,12 @@
             xmlns="http://javafx.com/javafx/21"
             xmlns:fx="http://javafx.com/fxml/1">
     <padding>
-        <Insets top="24.0" right="24.0" bottom="24.0" left="24.0" />
+        <Insets top="16.0" right="16.0" bottom="16.0" left="16.0" />
     </padding>
 
     <top>
-        <VBox spacing="18.0">
+        <VBox spacing="10.0">
             <HBox alignment="CENTER_LEFT" spacing="12.0">
-                <Button mnemonicParsing="false" onAction="#handleBackAction" styleClass="secondary-button" text="欢迎页" />
                 <Label styleClass="app-mark" text="ApexCal" />
                 <Region HBox.hgrow="ALWAYS" />
                 <Label fx:id="sourceStatusLabel" styleClass="hint-text" />
@@ -31,39 +31,46 @@
 
             <HBox alignment="CENTER_LEFT" spacing="16.0">
                 <VBox spacing="6.0">
-                    <Label styleClass="headline-small" text="周视图" />
+                    <Label fx:id="viewTitleLabel" styleClass="headline-small" text="周视图" />
                     <Label fx:id="rangeLabel" styleClass="lead-small" />
                 </VBox>
                 <Region HBox.hgrow="ALWAYS" />
-                <Button mnemonicParsing="false" onAction="#handlePreviousWeek" styleClass="nav-button" text="&lt;" />
-                <Label fx:id="weekLabel" styleClass="week-chip" text="第1周" />
-                <Button mnemonicParsing="false" onAction="#handleNextWeek" styleClass="nav-button" text="&gt;" />
+                <Button mnemonicParsing="false" onAction="#handlePreviousAction" styleClass="nav-button" text="&lt;" />
+                <Label fx:id="periodLabel" styleClass="week-chip" text="第1周" />
+                <Button mnemonicParsing="false" onAction="#handleNextAction" styleClass="nav-button" text="&gt;" />
             </HBox>
 
             <HBox alignment="CENTER_LEFT" spacing="12.0">
                 <Button mnemonicParsing="false" onAction="#handleNewTaskAction" styleClass="primary-button" text="新建任务" />
                 <Button mnemonicParsing="false" onAction="#handleTaskOverviewAction" styleClass="secondary-button" text="任务总览" />
-                <Button mnemonicParsing="false" onAction="#handleMonthViewAction" styleClass="secondary-button" text="月视图" />
-                <Button mnemonicParsing="false" onAction="#handleYearViewAction" styleClass="secondary-button" text="年视图" />
+                <Button fx:id="weekViewButton" mnemonicParsing="false" onAction="#handleWeekViewAction" styleClass="secondary-button" text="周视图" />
+                <Button fx:id="monthViewButton" mnemonicParsing="false" onAction="#handleMonthViewAction" styleClass="secondary-button" text="月视图" />
+                <Button fx:id="yearViewButton" mnemonicParsing="false" onAction="#handleYearViewAction" styleClass="secondary-button" text="年视图" />
                 <Button mnemonicParsing="false" onAction="#handleSettingsAction" styleClass="secondary-button" text="设置" />
             </HBox>
         </VBox>
     </top>
 
     <center>
-        <ScrollPane fitToHeight="true" fitToWidth="true" pannable="true" styleClass="schedule-scroll">
+        <ScrollPane fitToWidth="true" pannable="true" styleClass="schedule-scroll">
             <content>
-                <GridPane fx:id="scheduleGrid" hgap="1.0" vgap="1.0" styleClass="schedule-grid" />
+                <StackPane fx:id="viewContentHost">
+                    <GridPane fx:id="scheduleGrid" hgap="1.0" vgap="1.0" styleClass="schedule-grid" />
+                </StackPane>
             </content>
         </ScrollPane>
     </center>
 
     <bottom>
-        <VBox spacing="8.0" styleClass="detail-card">
+        <VBox fx:id="detailContainer" managed="false" spacing="8.0" styleClass="detail-card" visible="false">
             <padding>
-                <Insets top="18.0" right="20.0" bottom="18.0" left="20.0" />
+                <Insets top="14.0" right="18.0" bottom="14.0" left="18.0" />
             </padding>
-            <Label styleClass="card-title" text="任务详情" />
+            <HBox alignment="CENTER_LEFT" spacing="10.0">
+                <Label styleClass="card-title" text="任务详情" />
+                <Region HBox.hgrow="ALWAYS" />
+                <Button mnemonicParsing="false" onAction="#handleCollapseDetailsAction" styleClass="secondary-button" text="收起" />
+            </HBox>
             <Label fx:id="detailTitleLabel" styleClass="detail-title" text="点击课表块或日期查看详情" wrapText="true" />
             <Label fx:id="detailTypeLabel" styleClass="detail-line detail-secondary" wrapText="true" />
             <Label fx:id="detailLocationLabel" styleClass="detail-line" wrapText="true" />

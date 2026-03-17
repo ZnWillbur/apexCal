@@ -1,181 +1,67 @@
 {
-  "semester_start_monday": "2026.3.2",
+  "semester_start_monday": "2026-03-02",
   "courses": [
     {
-      "name": "Java EE企业应用开发",
+      "name": "软件工程",
       "weekday": "星期一",
       "start_section": 1,
       "end_section": 2,
       "weeks": "1-16",
-      "location": "4603",
-      "teacher": "杨春",
-      "classes": "24信管1-2",
-      "enrollment": 58
+      "location": "教学楼 A-301",
+      "teacher": "李老师",
+      "classes": "24计科1班",
+      "enrollment": 45
     },
     {
-      "name": "Java EE企业应用开发",
-      "weekday": "星期一",
-      "start_section": 3,
-      "end_section": 4,
-      "weeks": "8-11",
-      "location": "未排地点",
-      "teacher": "杨春",
-      "classes": "24信管1-2",
-      "enrollment": 58
-    },
-    {
-      "name": "信息资源管理",
-      "weekday": "星期二",
-      "start_section": 1,
-      "end_section": 2,
-      "weeks": "1-16",
-      "location": "4613",
-      "teacher": "毛小娟",
-      "classes": "24信管1-2",
-      "enrollment": 61
-    },
-    {
-      "name": "马克思主义基本原理",
-      "weekday": "星期二",
-      "start_section": 3,
-      "end_section": 4,
-      "weeks": "1-16",
-      "location": "4207",
-      "teacher": "林哲珣",
-      "classes": "24信管1-3",
-      "enrollment": 92
-    },
-    {
-      "name": "大数据管理与应用",
-      "weekday": "星期二",
-      "start_section": 8,
-      "end_section": 9,
-      "weeks": "6-9",
-      "location": "未排地点",
-      "teacher": "邓金",
-      "classes": "24信管1-2",
-      "enrollment": 32
-    },
-    {
-      "name": "Web高级开发技术",
-      "weekday": "星期二",
-      "start_section": 10,
-      "end_section": 11,
-      "weeks": "1-16",
-      "location": "4106",
-      "teacher": "韦婷婷",
-      "classes": "24信管1-2",
-      "enrollment": 51
-    },
-    {
-      "name": "大数据管理与应用",
-      "weekday": "星期二",
-      "start_section": 13,
-      "end_section": 15,
-      "weeks": "1-11",
-      "location": "4106",
-      "teacher": "邓金",
-      "classes": "24信管1-2",
-      "enrollment": 32
-    },
-    {
-      "name": "大学英语Ⅳ (翻译)[A]",
-      "weekday": "星期三",
-      "start_section": 1,
-      "end_section": 2,
-      "weeks": "1-16",
-      "location": "4701",
-      "teacher": "吴学进",
-      "classes": "板块(5)/数信学院998",
-      "enrollment": 50
-    },
-    {
-      "name": "体育Ⅳ[无等级][健身健美分组20]",
+      "name": "数据库系统",
       "weekday": "星期三",
       "start_section": 3,
       "end_section": 4,
       "weeks": "1-16",
-      "location": "综合馆健1",
-      "teacher": "王顺熙",
-      "classes": "板块(7)/数信学院993,海洋学院215,水利学院282",
-      "enrollment": 37
+      "location": "实验楼 B-204",
+      "teacher": "王老师",
+      "classes": "24计科1班",
+      "enrollment": 45
+    }
+  ],
+  "custom_tasks": [
+    {
+      "title": "社团例会",
+      "date": "2026-03-03",
+      "start_time": "18:30",
+      "end_time": "19:30",
+      "location": "活动中心 201",
+      "note": "提前 10 分钟到场",
+      "priority": 3,
+      "color": "#5A8DEE"
     },
     {
-      "name": "线性代数",
-      "weekday": "星期三",
-      "start_section": 8,
-      "end_section": 9,
-      "weeks": "1-8",
-      "location": "4206",
-      "teacher": "刘文琰",
-      "classes": "24信管1-4",
-      "enrollment": 130
+      "title": "跑步打卡",
+      "date": "2026-03-05",
+      "start_time": "21:00",
+      "end_time": "21:40",
+      "location": "东操场",
+      "note": "轻松跑 4 公里",
+      "priority": 2,
+      "color": "#23B26D"
+    }
+  ],
+  "ddl_tasks": [
+    {
+      "title": "软件工程实验报告",
+      "due_at": "2026-03-04 23:59",
+      "location": "课程平台",
+      "note": "包含 UML 与测试截图",
+      "priority": 5,
+      "color": "#D97706"
     },
     {
-      "name": "商务智能",
-      "weekday": "星期三",
-      "start_section": 10,
-      "end_section": 11,
-      "weeks": "1-16",
-      "location": "4106",
-      "teacher": "杨春",
-      "classes": "24信管1-2",
-      "enrollment": 60
-    },
-    {
-      "name": "大学生创新创业基础",
-      "weekday": "星期四",
-      "start_section": 3,
-      "end_section": 4,
-      "weeks": "1-8",
-      "location": "4307",
-      "teacher": "张凯",
-      "classes": "24信管1-2",
-      "enrollment": 61
-    },
-    {
-      "name": "线性代数",
-      "weekday": "星期四",
-      "start_section": 8,
-      "end_section": 9,
-      "weeks": "1-8",
-      "location": "4105",
-      "teacher": "刘文琰",
-      "classes": "24信管1-4",
-      "enrollment": 130
-    },
-    {
-      "name": "Web高级开发技术",
-      "weekday": "星期四",
-      "start_section": 10,
-      "end_section": 11,
-      "weeks": "8-11",
-      "location": "未排地点",
-      "teacher": "韦婷婷",
-      "classes": "24信管1-2",
-      "enrollment": 51
-    },
-    {
-      "name": "应用统计学",
-      "weekday": "星期五",
-      "start_section": 1,
-      "end_section": 2,
-      "weeks": "1-16",
-      "location": "4103",
-      "teacher": "张建桃",
-      "classes": "24信管1-2",
-      "enrollment": 61
-    },
-    {
-      "name": "形势与政策Ⅱ",
-      "weekday": "星期五",
-      "start_section": 13,
-      "end_section": 14,
-      "weeks": "10-13",
-      "location": "4108",
-      "teacher": "杨松霖",
-      "classes": "24计算科学1-3,24统计学1-2,24信管1-4,24思政教育1-3",
-      "enrollment": 383
+      "title": "数据库作业 1",
+      "due_at": "2026-03-06 20:00",
+      "location": "教学系统",
+      "note": "完成 6 道 SQL 题",
+      "priority": 4,
+      "color": "#DC2626"
     }
   ]
 }

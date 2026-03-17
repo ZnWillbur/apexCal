@@ -3,3 +3,5 @@ target/
 .vscode/
 *.log
 hs_err_pid*
+prompt.txt
+packaging/

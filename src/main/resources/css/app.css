@@ -7,10 +7,17 @@
 }
 
 .app-mark {
-    -fx-font-size: 16px;
-    -fx-font-weight: 700;
+    -fx-font-size: 22px;
+    -fx-font-weight: 800;
     -fx-text-fill: #8f3d35;
-    -fx-letter-spacing: 1.8px;
+    -fx-letter-spacing: 2.1px;
+}
+
+.welcome-apex-mark {
+    -fx-font-size: 72px;
+    -fx-font-weight: 900;
+    -fx-text-fill: #8f3d35;
+    -fx-letter-spacing: 3.2px;
 }
 
 .headline {
@@ -40,10 +47,24 @@
 .summary-card {
     -fx-background-color: rgba(255, 251, 248, 0.82);
     -fx-background-radius: 24px;
-    -fx-padding: 28px;
-    -fx-pref-width: 320px;
+    -fx-padding: 16px;
+    -fx-pref-width: 250px;
     -fx-border-color: rgba(143, 61, 53, 0.12);
     -fx-border-radius: 24px;
+}
+
+.welcome-actions {
+    -fx-background-color: rgba(255, 251, 248, 0.65);
+    -fx-background-radius: 20px;
+    -fx-padding: 14px;
+}
+
+.welcome-left-pane {
+    -fx-background-color: rgba(255, 251, 248, 0.5);
+    -fx-background-radius: 24px;
+    -fx-border-color: rgba(143, 61, 53, 0.1);
+    -fx-border-radius: 24px;
+    -fx-padding: 14px;
 }
 
 .card-title {
@@ -68,10 +89,10 @@
 }
 
 .week-chip {
-    -fx-font-size: 16px;
+    -fx-font-size: 17px;
     -fx-font-weight: 800;
     -fx-text-fill: #7f2f28;
-    -fx-padding: 10px 16px;
+    -fx-padding: 10px 18px;
     -fx-background-color: rgba(255, 252, 249, 0.86);
     -fx-background-radius: 18px;
     -fx-border-color: rgba(127, 47, 40, 0.12);
@@ -81,9 +102,9 @@
 .nav-button {
     -fx-background-color: rgba(255, 252, 249, 0.86);
     -fx-text-fill: #7f2f28;
-    -fx-pref-width: 42px;
-    -fx-pref-height: 42px;
-    -fx-font-size: 18px;
+    -fx-pref-width: 48px;
+    -fx-pref-height: 48px;
+    -fx-font-size: 20px;
     -fx-font-weight: 800;
 }
 
@@ -99,6 +120,20 @@
 .schedule-grid {
     -fx-background-color: rgba(143, 61, 53, 0.08);
     -fx-padding: 1px;
+}
+
+.inline-view-card {
+    -fx-background-color: rgba(255, 252, 249, 0.88);
+    -fx-background-radius: 22px;
+    -fx-border-color: rgba(143, 61, 53, 0.12);
+    -fx-border-radius: 22px;
+    -fx-padding: 16px;
+}
+
+.view-toggle-active {
+    -fx-background-color: #a63f34;
+    -fx-text-fill: white;
+    -fx-border-color: transparent;
 }
 
 .schedule-corner,
@@ -131,7 +166,7 @@
 }
 
 .day-name {
-    -fx-font-size: 18px;
+    -fx-font-size: 16px;
     -fx-font-weight: 800;
     -fx-text-fill: #2f1f1c;
 }
@@ -147,7 +182,7 @@
     -fx-text-fill: #8f3d35;
     -fx-background-color: rgba(166, 63, 52, 0.08);
     -fx-background-radius: 999px;
-    -fx-padding: 4px 10px;
+    -fx-padding: 3px 8px;
 }
 
 .summary-chip {
@@ -156,7 +191,7 @@
     -fx-text-fill: #5a3c37;
     -fx-background-color: rgba(90, 60, 55, 0.08);
     -fx-background-radius: 999px;
-    -fx-padding: 4px 10px;
+    -fx-padding: 3px 8px;
 }
 
 .time-cell {
@@ -216,10 +251,14 @@
 }
 
 .detail-card {
-    -fx-background-color: rgba(255, 252, 249, 0.88);
+    -fx-background-color: #fffaf7;
     -fx-background-radius: 24px;
-    -fx-border-color: rgba(143, 61, 53, 0.08);
+    -fx-border-color: rgba(143, 61, 53, 0.18);
     -fx-border-radius: 24px;
+}
+
+.detail-overlay {
+    -fx-max-width: 560px;
 }
 
 .detail-title {
@@ -244,8 +283,8 @@
 .button {
     -fx-cursor: hand;
     -fx-background-radius: 18px;
-    -fx-padding: 12px 24px;
-    -fx-font-size: 15px;
+    -fx-padding: 14px 28px;
+    -fx-font-size: 16px;
     -fx-font-weight: 700;
 }
 
@@ -273,6 +312,37 @@
     -fx-text-fill: #8e2430;
     -fx-font-size: 13px;
     -fx-font-weight: 700;
+}
+
+.section-editor-card {
+    -fx-background-color: rgba(255, 252, 249, 0.82);
+    -fx-background-radius: 16px;
+    -fx-padding: 10px;
+    -fx-border-color: rgba(143, 61, 53, 0.1);
+    -fx-border-radius: 16px;
+}
+
+.section-row {
+    -fx-background-color: rgba(255, 255, 255, 0.78);
+    -fx-background-radius: 12px;
+    -fx-padding: 8px 10px;
+}
+
+.section-index-chip {
+    -fx-font-size: 12px;
+    -fx-font-weight: 800;
+    -fx-text-fill: #7f2f28;
+    -fx-background-color: rgba(166, 63, 52, 0.1);
+    -fx-background-radius: 999px;
+    -fx-padding: 4px 10px;
+}
+
+.section-time-input {
+    -fx-pref-width: 84px;
+    -fx-background-color: rgba(255, 255, 255, 0.92);
+    -fx-background-radius: 10px;
+    -fx-border-color: rgba(90, 60, 55, 0.16);
+    -fx-border-radius: 10px;
 }
 
 .app-dialog {
@@ -398,4 +468,13 @@
     -fx-font-size: 13px;
     -fx-text-fill: rgba(47, 31, 28, 0.68);
     -fx-line-spacing: 4px;
+}
+
+.widget-scroll {
+    -fx-background-color: transparent;
+    -fx-border-color: transparent;
+}
+
+.widget-scroll > .viewport {
+    -fx-background-color: transparent;
 }

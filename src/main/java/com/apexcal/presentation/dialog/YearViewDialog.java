@@ -2,7 +2,7 @@ package com.apexcal.presentation.dialog;
 
 import com.apexcal.application.service.ScheduleService;
 import com.apexcal.domain.service.ColorGradientService;
-import java.net.URL;
+import com.apexcal.presentation.window.WindowTheme;
 import java.time.YearMonth;
 import java.util.Comparator;
 import java.util.Map;
@@ -152,10 +152,6 @@ public final class YearViewDialog {
     }
 
     private void applyStyles(Dialog<?> dialog) {
-        URL stylesheet = Thread.currentThread().getContextClassLoader().getResource("css/app.css");
-        if (stylesheet != null) {
-            dialog.getDialogPane().getStylesheets().add(stylesheet.toExternalForm());
-        }
-        dialog.getDialogPane().getStyleClass().add("app-dialog");
+        WindowTheme.applyDialogTheme(dialog);
     }
 }

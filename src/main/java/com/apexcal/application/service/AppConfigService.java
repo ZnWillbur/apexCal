@@ -38,7 +38,10 @@ public final class AppConfigService {
 
     public void setStartupEnabled(boolean enabled) {
         if (startupIntegration.isSupported()) {
-            startupIntegration.setEnabled(enabled);
+            boolean actual = startupIntegration.isEnabled();
+            if (actual != enabled) {
+                startupIntegration.setEnabled(enabled);
+            }
         }
         configRepository.putValue(STARTUP_KEY, Boolean.toString(enabled));
     }

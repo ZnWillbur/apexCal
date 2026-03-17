@@ -6,7 +6,7 @@ import com.apexcal.domain.task.TaskItem;
 import com.apexcal.domain.task.TaskSource;
 import com.apexcal.domain.task.TaskType;
 import com.apexcal.domain.task.WeekPattern;
-import java.net.URL;
+import com.apexcal.presentation.window.WindowTheme;
 import java.time.DayOfWeek;
 import java.time.LocalDate;
 import java.time.LocalTime;
@@ -308,10 +308,6 @@ public final class TaskFormDialog {
     }
 
     private void applyStyles(Dialog<?> dialog) {
-        URL stylesheet = Thread.currentThread().getContextClassLoader().getResource("css/app.css");
-        if (stylesheet != null) {
-            dialog.getDialogPane().getStylesheets().add(stylesheet.toExternalForm());
-        }
-        dialog.getDialogPane().getStyleClass().add("app-dialog");
+        WindowTheme.applyDialogTheme(dialog);
     }
 }
