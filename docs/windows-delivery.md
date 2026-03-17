@@ -39,7 +39,7 @@ powershell -ExecutionPolicy Bypass -File .\packaging\windows\package.ps1 -Type e
 产物示例：
 
 ```text
-packaging\windows\dist\ApexCal-0.2.0.exe
+packaging\windows\dist\ApexCal-0.2.2.exe
 ```
 
 ## 4. WiX 兼容性说明

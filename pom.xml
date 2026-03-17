@@ -5,7 +5,7 @@
 
     <groupId>com.apexcal</groupId>
     <artifactId>apexcal</artifactId>
-    <version>0.2.0</version>
+    <version>0.2.2</version>
     <name>ApexCal</name>
     <description>Lightweight desktop schedule manager for university students.</description>
 

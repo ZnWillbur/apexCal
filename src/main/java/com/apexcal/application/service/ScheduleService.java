@@ -33,17 +33,20 @@ import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.LocalTime;
 import java.time.YearMonth;
+import java.time.format.DateTimeFormatter;
 import java.time.format.DateTimeFormatterBuilder;
 import java.time.format.DateTimeParseException;
 import java.time.temporal.ChronoField;
 import java.util.ArrayList;
 import java.util.Comparator;
+import java.util.HashSet;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
+import java.util.Set;
 import java.util.UUID;
 import java.util.stream.Collectors;
 import org.slf4j.Logger;
@@ -70,6 +73,8 @@ public final class ScheduleService {
             .appendLiteral('.')
             .appendValue(ChronoField.DAY_OF_MONTH)
             .toFormatter(Locale.ROOT);
+    private static final DateTimeFormatter HH_MM_FORMATTER = DateTimeFormatter.ofPattern("HH:mm");
+    private static final DateTimeFormatter EXPORT_DUE_AT_FORMATTER = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm");
 
     private final ObjectMapper objectMapper = ObjectMapperFactory.create();
     private final WeekCalculationService weekCalculationService = new WeekCalculationService();
@@ -88,6 +93,23 @@ public final class ScheduleService {
             Map<YearMonth, Integer> monthlyCounts,
             int totalTasks,
             int maxMonthlyTasks) {
+        }
+
+        public record TemplateExportResult(Path classFile, Path timeFile) {
+        }
+
+        public record TemplateImportPreview(int incomingCount, int conflictCount) {
+            public boolean hasConflicts() {
+                return conflictCount > 0;
+            }
+        }
+
+        public record TemplateImportResult(int importedCount, int overwrittenCount, int skippedCount) {
+        }
+
+        public enum ImportConflictPolicy {
+            OVERWRITE,
+            SKIP
         }
 
     public ScheduleService() {
@@ -239,19 +261,152 @@ public final class ScheduleService {
         applyImportedSchedule(importedSchedule);
     }
 
+    public TemplateImportPreview previewTemplateImport(Path inputDirectory) {
+        ImportedSchedule importedSchedule = loadImportedScheduleFromDirectory(inputDirectory);
+        List<TaskItem> importedTasks = buildImportedTasks(importedSchedule);
+
+        Set<String> existingIds = existingImportedTaskIds();
+        int conflictCount = (int) importedTasks.stream()
+                .map(TaskItem::uuid)
+                .filter(existingIds::contains)
+                .count();
+        return new TemplateImportPreview(importedTasks.size(), conflictCount);
+    }
+
+    public TemplateImportResult importTemplates(Path inputDirectory, ImportConflictPolicy conflictPolicy) {
+        Objects.requireNonNull(conflictPolicy, "conflictPolicy");
+
+        ImportedSchedule importedSchedule = loadImportedScheduleFromDirectory(inputDirectory);
+        List<TaskItem> importedTasks = buildImportedTasks(importedSchedule);
+        Set<String> existingIds = existingImportedTaskIds();
+
+        int importedCount = 0;
+        int overwrittenCount = 0;
+        int skippedCount = 0;
+
+        for (TaskItem task : importedTasks) {
+            boolean isConflict = existingIds.contains(task.uuid());
+            if (isConflict && conflictPolicy == ImportConflictPolicy.SKIP) {
+                skippedCount++;
+                continue;
+            }
+
+            taskRepository.save(task);
+            if (isConflict) {
+                overwrittenCount++;
+            } else {
+                importedCount++;
+                existingIds.add(task.uuid());
+            }
+        }
+
+        configRepository.saveSemesterConfig(importedSchedule.config());
+        return new TemplateImportResult(importedCount, overwrittenCount, skippedCount);
+    }
+
+    public TemplateExportResult exportTemplates(Path outputDirectory) {
+        Objects.requireNonNull(outputDirectory, "outputDirectory");
+
+        SemesterConfig config = getSemesterConfig();
+        List<TaskItem> tasks = taskRepository.findAllActive();
+        List<TimeSection> sortedSections = config.sections().stream()
+                .sorted(Comparator.comparingInt(TimeSection::section))
+                .toList();
+
+        ObjectNode classRoot = objectMapper.createObjectNode();
+        classRoot.put("semester_start_monday", config.firstMonday().toString());
+
+        var coursesArray = classRoot.putArray("courses");
+        tasks.stream()
+                .filter(task -> task.type() == TaskType.COURSE)
+                .sorted(Comparator
+                        .comparing(TaskItem::weekday)
+                        .thenComparing(task -> task.startMinute() == null ? 0 : task.startMinute())
+                        .thenComparing(TaskItem::title))
+                .forEach(task -> {
+                    CourseMetadata metadata = readCourseMetadata(task);
+                    int startSection = resolveStartSection(task.startMinute(), sortedSections);
+                    int endSection = resolveEndSection(task.endMinute(), sortedSections);
+                    int normalizedStart = Math.min(startSection, endSection);
+                    int normalizedEnd = Math.max(startSection, endSection);
+
+                    ObjectNode courseNode = coursesArray.addObject();
+                    courseNode.put("name", task.title());
+                    courseNode.put("weekday", formatWeekday(task.weekday()));
+                    courseNode.put("start_section", normalizedStart);
+                    courseNode.put("end_section", normalizedEnd);
+                    courseNode.put("weeks", task.weekPattern().isBlank() ? "1-" + config.totalWeeks() : task.weekPattern());
+                    courseNode.put("location", task.location());
+                    courseNode.put("teacher", metadata.teacher());
+                    courseNode.put("classes", metadata.classesInfo());
+                    courseNode.put("enrollment", metadata.enrollment());
+                });
+
+        var customTasksArray = classRoot.putArray("custom_tasks");
+        tasks.stream()
+                .filter(task -> task.type() == TaskType.CUSTOM)
+                .sorted(Comparator
+                        .comparing((TaskItem task) -> task.startDate() == null ? LocalDate.MIN : task.startDate())
+                        .thenComparing(task -> task.startMinute() == null ? 0 : task.startMinute())
+                        .thenComparing(TaskItem::title))
+                .forEach(task -> {
+                    ObjectNode customNode = customTasksArray.addObject();
+                    customNode.put("title", task.title());
+                    customNode.put("date", (task.startDate() == null ? LocalDate.now() : task.startDate()).toString());
+                    customNode.put("start_time", formatTime(task.startTime()));
+                    customNode.put("end_time", formatTime(task.endTime()));
+                    customNode.put("location", task.location());
+                    customNode.put("note", task.note());
+                    customNode.put("priority", task.priority());
+                    customNode.put("color", normalizeColor(task.colorHex(), TaskType.CUSTOM));
+                });
+
+        var ddlTasksArray = classRoot.putArray("ddl_tasks");
+        tasks.stream()
+                .filter(task -> task.type() == TaskType.DDL)
+                .sorted(Comparator
+                        .comparing(TaskItem::dueAt, Comparator.nullsLast(Comparator.naturalOrder()))
+                        .thenComparing(TaskItem::title))
+                .forEach(task -> {
+                    ObjectNode ddlNode = ddlTasksArray.addObject();
+                    ddlNode.put("title", task.title());
+                    ddlNode.put("due_at", task.dueAt().format(EXPORT_DUE_AT_FORMATTER));
+                    ddlNode.put("location", task.location());
+                    ddlNode.put("note", task.note());
+                    ddlNode.put("priority", task.priority());
+                    ddlNode.put("color", normalizeColor(task.colorHex(), TaskType.DDL));
+                });
+
+        ObjectNode timeRoot = objectMapper.createObjectNode();
+        var sectionsArray = timeRoot.putArray("sections");
+        sortedSections.forEach(section -> {
+            ObjectNode sectionNode = sectionsArray.addObject();
+            sectionNode.put("section", section.section());
+            sectionNode.put("start", formatTime(section.start()));
+            sectionNode.put("end", formatTime(section.end()));
+        });
+
+        try {
+            Files.createDirectories(outputDirectory);
+            Path classFile = outputDirectory.resolve("class.json");
+            Path timeFile = outputDirectory.resolve("time.json");
+
+            Files.writeString(classFile, objectMapper.writerWithDefaultPrettyPrinter().writeValueAsString(classRoot));
+            Files.writeString(timeFile, objectMapper.writerWithDefaultPrettyPrinter().writeValueAsString(timeRoot));
+
+            return new TemplateExportResult(classFile, timeFile);
+        } catch (IOException exception) {
+            throw new IllegalStateException("导出模板失败", exception);
+        }
+    }
+
     private void applyImportedSchedule(ImportedSchedule importedSchedule) {
         configRepository.saveSemesterConfig(importedSchedule.config());
         taskRepository.deleteByTypeAndSource(TaskType.COURSE, TaskSource.IMPORTED_CLASS_JSON);
         taskRepository.deleteByTypeAndSource(TaskType.CUSTOM, TaskSource.IMPORTED_CLASS_JSON);
         taskRepository.deleteByTypeAndSource(TaskType.DDL, TaskSource.IMPORTED_CLASS_JSON);
-        for (CourseTask course : importedSchedule.courses()) {
-            taskRepository.save(toImportedTask(course, importedSchedule.sectionLookup()));
-        }
-        for (TemplateCustomTask customTask : importedSchedule.customTasks()) {
-            taskRepository.save(toImportedCustomTask(customTask));
-        }
-        for (TemplateDeadlineTask deadlineTask : importedSchedule.deadlineTasks()) {
-            taskRepository.save(toImportedDeadlineTask(deadlineTask));
+        for (TaskItem task : buildImportedTasks(importedSchedule)) {
+            taskRepository.save(task);
         }
     }
 
@@ -454,61 +609,91 @@ public final class ScheduleService {
         try {
             List<TimeSection> sections = loadSections(preferExternalTemplate);
             JsonNode classRoot = loadClassRoot(preferExternalTemplate);
-            LocalDate firstMonday = parseDate(classRoot.path("semester_start_monday").asText());
-            List<CourseTask> courses = new ArrayList<>();
-            for (JsonNode courseNode : classRoot.path("courses")) {
-                courses.add(new CourseTask(
-                        courseNode.path("name").asText(),
-                        parseWeekday(courseNode.path("weekday").asText()),
-                        courseNode.path("start_section").asInt(),
-                        courseNode.path("end_section").asInt(),
-                        WeekPattern.parse(courseNode.path("weeks").asText()),
-                        courseNode.path("location").asText(),
-                        courseNode.path("teacher").asText(),
-                        courseNode.path("classes").asText(),
-                        courseNode.path("enrollment").asInt()));
-            }
-            courses.sort(Comparator.comparing(CourseTask::weekday).thenComparingInt(CourseTask::startSection));
-
-            List<TemplateCustomTask> customTasks = new ArrayList<>();
-            int customIndex = 1;
-            for (JsonNode customNode : classRoot.path("custom_tasks")) {
-                customTasks.add(new TemplateCustomTask(
-                        valueOrDefault(customNode.path("title").asText(null), "自建任务 " + customIndex),
-                        parseDate(customNode.path("date").asText()),
-                        parseTime(customNode.path("start_time").asText()),
-                        parseTime(customNode.path("end_time").asText()),
-                        valueOrDefault(customNode.path("location").asText(null), ""),
-                        valueOrDefault(customNode.path("note").asText(null), ""),
-                        normalizePriority(customNode.path("priority").asInt(3)),
-                        valueOrDefault(customNode.path("color").asText(null), defaultColor(TaskType.CUSTOM))));
-                customIndex++;
-            }
-
-            List<TemplateDeadlineTask> deadlineTasks = new ArrayList<>();
-            int ddlIndex = 1;
-            for (JsonNode ddlNode : classRoot.path("ddl_tasks")) {
-                deadlineTasks.add(new TemplateDeadlineTask(
-                        valueOrDefault(ddlNode.path("title").asText(null), "DDL 任务 " + ddlIndex),
-                        parseDateTime(ddlNode.path("due_at").asText()),
-                        valueOrDefault(ddlNode.path("location").asText(null), ""),
-                        valueOrDefault(ddlNode.path("note").asText(null), ""),
-                        normalizePriority(ddlNode.path("priority").asInt(4)),
-                        valueOrDefault(ddlNode.path("color").asText(null), defaultColor(TaskType.DDL))));
-                ddlIndex++;
-            }
-
-            Map<Integer, TimeSection> sectionLookup = sections.stream().collect(Collectors.toMap(TimeSection::section, section -> section));
-            SemesterConfig config = new SemesterConfig(
-                    buildSemesterName(firstMonday),
-                    firstMonday,
-                    20,
-                    7,
-                    sections);
-            return new ImportedSchedule(config, courses, sectionLookup, customTasks, deadlineTasks);
+            return parseImportedSchedule(classRoot, sections);
         } catch (IOException exception) {
             throw new IllegalStateException("无法加载课程导入数据", exception);
         }
+    }
+
+    private ImportedSchedule loadImportedScheduleFromDirectory(Path inputDirectory) {
+        Objects.requireNonNull(inputDirectory, "inputDirectory");
+
+        Path classFile = inputDirectory.resolve("class.json");
+        Path timeFile = inputDirectory.resolve("time.json");
+        if (!Files.exists(classFile)) {
+            throw new IllegalArgumentException("导入目录缺少 class.json");
+        }
+        if (!Files.exists(timeFile)) {
+            throw new IllegalArgumentException("导入目录缺少 time.json");
+        }
+
+        try {
+            JsonNode classRoot;
+            JsonNode timeRoot;
+            try (InputStream classInputStream = Files.newInputStream(classFile);
+                 InputStream timeInputStream = Files.newInputStream(timeFile)) {
+                classRoot = objectMapper.readTree(classInputStream);
+                timeRoot = objectMapper.readTree(timeInputStream);
+            }
+            return parseImportedSchedule(classRoot, parseSections(timeRoot));
+        } catch (IOException exception) {
+            throw new IllegalStateException("无法读取导入目录中的模板文件", exception);
+        }
+    }
+
+    private ImportedSchedule parseImportedSchedule(JsonNode classRoot, List<TimeSection> sections) {
+        LocalDate firstMonday = parseDate(classRoot.path("semester_start_monday").asText());
+        List<CourseTask> courses = new ArrayList<>();
+        for (JsonNode courseNode : classRoot.path("courses")) {
+            courses.add(new CourseTask(
+                    courseNode.path("name").asText(),
+                    parseWeekday(courseNode.path("weekday").asText()),
+                    courseNode.path("start_section").asInt(),
+                    courseNode.path("end_section").asInt(),
+                    WeekPattern.parse(courseNode.path("weeks").asText()),
+                    courseNode.path("location").asText(),
+                    courseNode.path("teacher").asText(),
+                    courseNode.path("classes").asText(),
+                    courseNode.path("enrollment").asInt()));
+        }
+        courses.sort(Comparator.comparing(CourseTask::weekday).thenComparingInt(CourseTask::startSection));
+
+        List<TemplateCustomTask> customTasks = new ArrayList<>();
+        int customIndex = 1;
+        for (JsonNode customNode : classRoot.path("custom_tasks")) {
+            customTasks.add(new TemplateCustomTask(
+                    valueOrDefault(customNode.path("title").asText(null), "自建任务 " + customIndex),
+                    parseDate(customNode.path("date").asText()),
+                    parseTime(customNode.path("start_time").asText()),
+                    parseTime(customNode.path("end_time").asText()),
+                    valueOrDefault(customNode.path("location").asText(null), ""),
+                    valueOrDefault(customNode.path("note").asText(null), ""),
+                    normalizePriority(customNode.path("priority").asInt(3)),
+                    valueOrDefault(customNode.path("color").asText(null), defaultColor(TaskType.CUSTOM))));
+            customIndex++;
+        }
+
+        List<TemplateDeadlineTask> deadlineTasks = new ArrayList<>();
+        int ddlIndex = 1;
+        for (JsonNode ddlNode : classRoot.path("ddl_tasks")) {
+            deadlineTasks.add(new TemplateDeadlineTask(
+                    valueOrDefault(ddlNode.path("title").asText(null), "DDL 任务 " + ddlIndex),
+                    parseDateTime(ddlNode.path("due_at").asText()),
+                    valueOrDefault(ddlNode.path("location").asText(null), ""),
+                    valueOrDefault(ddlNode.path("note").asText(null), ""),
+                    normalizePriority(ddlNode.path("priority").asInt(4)),
+                    valueOrDefault(ddlNode.path("color").asText(null), defaultColor(TaskType.DDL))));
+            ddlIndex++;
+        }
+
+        Map<Integer, TimeSection> sectionLookup = sections.stream().collect(Collectors.toMap(TimeSection::section, section -> section));
+        SemesterConfig config = new SemesterConfig(
+                buildSemesterName(firstMonday),
+                firstMonday,
+                20,
+                7,
+                sections);
+        return new ImportedSchedule(config, courses, sectionLookup, customTasks, deadlineTasks);
     }
 
     private TaskItem toImportedTask(CourseTask course, Map<Integer, TimeSection> sectionLookup) {
@@ -635,6 +820,10 @@ public final class ScheduleService {
             }
         }
 
+        return parseSections(timeRoot);
+    }
+
+    private List<TimeSection> parseSections(JsonNode timeRoot) {
         List<TimeSection> sections = new ArrayList<>();
         for (JsonNode sectionNode : timeRoot.path("sections")) {
             sections.add(new TimeSection(
@@ -644,6 +833,27 @@ public final class ScheduleService {
         }
         sections.sort(Comparator.comparingInt(TimeSection::section));
         return sections;
+    }
+
+    private List<TaskItem> buildImportedTasks(ImportedSchedule importedSchedule) {
+        List<TaskItem> importedTasks = new ArrayList<>();
+        for (CourseTask course : importedSchedule.courses()) {
+            importedTasks.add(toImportedTask(course, importedSchedule.sectionLookup()));
+        }
+        for (TemplateCustomTask customTask : importedSchedule.customTasks()) {
+            importedTasks.add(toImportedCustomTask(customTask));
+        }
+        for (TemplateDeadlineTask deadlineTask : importedSchedule.deadlineTasks()) {
+            importedTasks.add(toImportedDeadlineTask(deadlineTask));
+        }
+        return importedTasks;
+    }
+
+    private Set<String> existingImportedTaskIds() {
+        return taskRepository.findAllActive().stream()
+                .filter(task -> task.source() == TaskSource.IMPORTED_CLASS_JSON)
+                .map(TaskItem::uuid)
+                .collect(Collectors.toCollection(HashSet::new));
     }
 
     private Path resolveExternalFile(String fileName) {
@@ -801,6 +1011,59 @@ public final class ScheduleService {
             return fallback;
         }
         return raw.trim();
+    }
+
+    private int resolveStartSection(Integer startMinute, List<TimeSection> sections) {
+        if (sections.isEmpty()) {
+            return 1;
+        }
+        if (startMinute == null) {
+            return sections.get(0).section();
+        }
+        return sections.stream()
+                .filter(section -> section.startMinute() == startMinute)
+                .findFirst()
+                .or(() -> sections.stream()
+                        .filter(section -> startMinute >= section.startMinute() && startMinute < section.endMinute())
+                        .findFirst())
+                .map(TimeSection::section)
+                .orElse(sections.get(0).section());
+    }
+
+    private int resolveEndSection(Integer endMinute, List<TimeSection> sections) {
+        if (sections.isEmpty()) {
+            return 1;
+        }
+        if (endMinute == null) {
+            return sections.get(sections.size() - 1).section();
+        }
+        return sections.stream()
+                .filter(section -> section.endMinute() == endMinute)
+                .findFirst()
+                .or(() -> sections.stream()
+                        .filter(section -> endMinute > section.startMinute() && endMinute <= section.endMinute())
+                        .findFirst())
+                .map(TimeSection::section)
+                .orElse(sections.get(sections.size() - 1).section());
+    }
+
+    private String formatWeekday(DayOfWeek weekday) {
+        return switch (weekday) {
+            case MONDAY -> "星期一";
+            case TUESDAY -> "星期二";
+            case WEDNESDAY -> "星期三";
+            case THURSDAY -> "星期四";
+            case FRIDAY -> "星期五";
+            case SATURDAY -> "星期六";
+            case SUNDAY -> "星期日";
+        };
+    }
+
+    private String formatTime(LocalTime time) {
+        if (time == null) {
+            return "00:00";
+        }
+        return time.format(HH_MM_FORMATTER);
     }
 
     private record ImportedSchedule(

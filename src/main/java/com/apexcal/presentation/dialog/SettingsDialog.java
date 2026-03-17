@@ -6,14 +6,19 @@ import com.apexcal.domain.layout.TimeSection;
 import com.apexcal.domain.semester.SemesterConfig;
 import com.apexcal.infrastructure.config.AppDirectories;
 import com.apexcal.presentation.window.WindowTheme;
+import java.awt.Desktop;
+import java.io.File;
+import java.nio.file.Path;
 import java.time.LocalTime;
 import java.time.LocalDate;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Optional;
 import javafx.event.ActionEvent;
 import javafx.geometry.Insets;
 import javafx.geometry.Pos;
 import javafx.scene.Node;
+import javafx.scene.control.Alert;
 import javafx.scene.control.Button;
 import javafx.scene.control.ButtonBar;
 import javafx.scene.control.ButtonType;
@@ -23,12 +28,12 @@ import javafx.scene.control.Dialog;
 import javafx.scene.control.Label;
 import javafx.scene.control.ScrollPane;
 import javafx.scene.control.TextField;
-import javafx.scene.control.TextArea;
 import javafx.scene.layout.GridPane;
 import javafx.scene.layout.HBox;
 import javafx.scene.layout.Priority;
 import javafx.scene.layout.Region;
 import javafx.scene.layout.VBox;
+import javafx.stage.DirectoryChooser;
 import javafx.stage.Window;
 
 public final class SettingsDialog {
@@ -46,7 +51,7 @@ public final class SettingsDialog {
         Dialog<Void> dialog = new Dialog<>();
         dialog.initOwner(owner);
         dialog.setTitle("设置");
-        dialog.setHeaderText("学期设置、课程重导入与开机自启");
+        dialog.setHeaderText("模板导入导出、学期与开机自启设置");
         applyStyles(dialog);
 
         ButtonType saveButtonType = new ButtonType("保存", ButtonBar.ButtonData.OK_DONE);
@@ -80,17 +85,8 @@ public final class SettingsDialog {
         sectionScrollPane.setPannable(true);
         sectionScrollPane.setHbarPolicy(ScrollPane.ScrollBarPolicy.NEVER);
         sectionScrollPane.setVbarPolicy(ScrollPane.ScrollBarPolicy.AS_NEEDED);
-        sectionScrollPane.setPrefViewportHeight(210);
+        sectionScrollPane.setPrefViewportHeight(300);
         sectionScrollPane.getStyleClass().add("widget-scroll");
-
-        TextArea infoArea = new TextArea();
-        infoArea.setEditable(false);
-        infoArea.setWrapText(true);
-        infoArea.setPrefRowCount(4);
-        infoArea.setText("数据目录：" + AppDirectories.dataDirectory().toAbsolutePath() + System.lineSeparator()
-                + "日志目录：" + AppDirectories.logDirectory().toAbsolutePath() + System.lineSeparator()
-                + "当前学期：" + config.semesterName() + System.lineSeparator()
-                + "关闭主界面后程序会隐藏到托盘，并按需显示桌面小窗。");
 
         Label statusLabel = new Label();
         statusLabel.getStyleClass().add("form-error");
@@ -125,13 +121,88 @@ public final class SettingsDialog {
             }
         });
 
+        Button importButton = new Button("导入模板");
+        importButton.getStyleClass().add("secondary-button");
+        importButton.setOnAction(event -> {
+            try {
+                DirectoryChooser chooser = new DirectoryChooser();
+                chooser.setTitle("选择导入目录（需包含 class.json 与 time.json）");
+
+                File defaultDirectory = AppDirectories.dataDirectory().toFile();
+                if (!defaultDirectory.exists()) {
+                    defaultDirectory = new File(System.getProperty("user.home", "."));
+                }
+                if (defaultDirectory.exists()) {
+                    chooser.setInitialDirectory(defaultDirectory);
+                }
+
+                File selectedDirectory = chooser.showDialog(owner);
+                if (selectedDirectory == null) {
+                    statusLabel.setText("已取消导入");
+                    return;
+                }
+
+                Path importDirectory = selectedDirectory.toPath();
+                ScheduleService.TemplateImportPreview preview = scheduleService.previewTemplateImport(importDirectory);
+                ScheduleService.ImportConflictPolicy conflictPolicy = ScheduleService.ImportConflictPolicy.OVERWRITE;
+                if (preview.hasConflicts()) {
+                    conflictPolicy = askImportConflictPolicy(owner, preview.conflictCount());
+                    if (conflictPolicy == null) {
+                        statusLabel.setText("已取消导入");
+                        return;
+                    }
+                }
+
+                ScheduleService.TemplateImportResult result = scheduleService.importTemplates(importDirectory, conflictPolicy);
+                SemesterConfig refreshed = scheduleService.getSemesterConfig();
+                firstMondayPicker.setValue(refreshed.firstMonday());
+                refillSectionRows(sectionRows, sectionRowsBox, refreshed.sections(), refreshSectionIndices);
+                statusLabel.setText("导入完成：新增 " + result.importedCount()
+                        + "，覆盖 " + result.overwrittenCount()
+                        + "，跳过 " + result.skippedCount());
+                onChanged.run();
+            } catch (Exception exception) {
+                statusLabel.setText(exception.getMessage());
+            }
+        });
+
+        Button exportButton = new Button("导出模板");
+        exportButton.getStyleClass().add("secondary-button");
+        exportButton.setOnAction(event -> {
+            try {
+                DirectoryChooser chooser = new DirectoryChooser();
+                chooser.setTitle("选择导出目录");
+
+                File defaultDirectory = AppDirectories.dataDirectory().toFile();
+                if (!defaultDirectory.exists()) {
+                    defaultDirectory = new File(System.getProperty("user.home", "."));
+                }
+                if (defaultDirectory.exists()) {
+                    chooser.setInitialDirectory(defaultDirectory);
+                }
+
+                File selectedDirectory = chooser.showDialog(owner);
+                if (selectedDirectory == null) {
+                    statusLabel.setText("已取消导出");
+                    return;
+                }
+
+                ScheduleService.TemplateExportResult exportResult = scheduleService.exportTemplates(selectedDirectory.toPath());
+                boolean opened = openDirectory(selectedDirectory.toPath());
+                statusLabel.setText("导出完成："
+                        + exportResult.classFile().toAbsolutePath()
+                        + "；"
+                        + exportResult.timeFile().toAbsolutePath()
+                        + (opened ? "（已打开导出目录）" : "（导出目录打开失败）"));
+            } catch (Exception exception) {
+                statusLabel.setText(exception.getMessage());
+            }
+        });
+
         GridPane gridPane = new GridPane();
         gridPane.setHgap(18);
         gridPane.setVgap(12);
         gridPane.setPadding(new Insets(12, 0, 0, 0));
-        gridPane.add(new Label("学期第一周周一"), 0, 0);
-        gridPane.add(firstMondayPicker, 1, 0);
-        gridPane.add(startupCheckBox, 1, 1);
 
         Label sectionEditorLabel = new Label("节次编辑器");
         sectionEditorLabel.getStyleClass().add("card-title");
@@ -139,16 +210,19 @@ public final class SettingsDialog {
         sectionActionRow.setAlignment(Pos.CENTER_LEFT);
         HBox.setHgrow(sectionActionRow.getChildren().get(1), Priority.ALWAYS);
 
-        gridPane.add(sectionActionRow, 1, 2);
-        gridPane.add(sectionScrollPane, 1, 3);
-        gridPane.add(new Label("运行信息"), 0, 4);
-        gridPane.add(infoArea, 1, 4);
-        HBox templateActions = new HBox(10, reimportButton, restoreDefaultsButton);
+        HBox templateActions = new HBox(10, reimportButton, restoreDefaultsButton, importButton, exportButton);
         templateActions.setAlignment(Pos.CENTER_LEFT);
-        gridPane.add(templateActions, 1, 5);
-        gridPane.add(statusLabel, 1, 6);
-        GridPane.setHgrow(infoArea, Priority.ALWAYS);
+
+        HBox semesterSettingsRow = new HBox(14, new Label("学期第一周周一"), firstMondayPicker, startupCheckBox);
+        semesterSettingsRow.setAlignment(Pos.CENTER_LEFT);
+
+        gridPane.add(templateActions, 0, 0, 2, 1);
+        gridPane.add(sectionActionRow, 0, 1, 2, 1);
+        gridPane.add(sectionScrollPane, 0, 2, 2, 1);
+        gridPane.add(semesterSettingsRow, 0, 3, 2, 1);
+        gridPane.add(statusLabel, 0, 4, 2, 1);
         GridPane.setHgrow(sectionScrollPane, Priority.ALWAYS);
+        GridPane.setVgrow(sectionScrollPane, Priority.ALWAYS);
         dialog.getDialogPane().setContent(gridPane);
 
         Node saveButton = dialog.getDialogPane().lookupButton(saveButtonType);
@@ -171,6 +245,49 @@ public final class SettingsDialog {
         });
 
         dialog.showAndWait();
+    }
+
+    private ScheduleService.ImportConflictPolicy askImportConflictPolicy(Window owner, int conflictCount) {
+        Alert conflictAlert = new Alert(Alert.AlertType.CONFIRMATION);
+        conflictAlert.initOwner(owner);
+        conflictAlert.setTitle("导入冲突处理");
+        conflictAlert.setHeaderText("检测到 " + conflictCount + " 条冲突数据");
+        conflictAlert.setContentText("请选择冲突处理方式：");
+
+        ButtonType overwriteButton = new ButtonType("覆盖冲突项", ButtonBar.ButtonData.OK_DONE);
+        ButtonType skipButton = new ButtonType("跳过冲突项", ButtonBar.ButtonData.OTHER);
+        ButtonType cancelButton = new ButtonType("取消", ButtonBar.ButtonData.CANCEL_CLOSE);
+        conflictAlert.getButtonTypes().setAll(overwriteButton, skipButton, cancelButton);
+
+        applyStyles(conflictAlert);
+        Optional<ButtonType> result = conflictAlert.showAndWait();
+        if (result.isEmpty() || result.get() == cancelButton) {
+            return null;
+        }
+        if (result.get() == skipButton) {
+            return ScheduleService.ImportConflictPolicy.SKIP;
+        }
+        return ScheduleService.ImportConflictPolicy.OVERWRITE;
+    }
+
+    private boolean openDirectory(Path directory) {
+        try {
+            if (Desktop.isDesktopSupported()) {
+                Desktop desktop = Desktop.getDesktop();
+                if (desktop.isSupported(Desktop.Action.OPEN)) {
+                    desktop.open(directory.toFile());
+                    return true;
+                }
+            }
+        } catch (Exception ignored) {
+        }
+
+        try {
+            new ProcessBuilder("explorer.exe", directory.toAbsolutePath().toString()).start();
+            return true;
+        } catch (Exception ignored) {
+            return false;
+        }
     }
 
     private void applyStyles(Dialog<?> dialog) {

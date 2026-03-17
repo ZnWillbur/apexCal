@@ -1,4 +1,4 @@
-# ApexCal 技术指南（v0.2.0）
+# ApexCal 技术指南（v0.2.2）
 
 ## 1. 项目目标
 
@@ -54,7 +54,7 @@ ApexCal 是一个面向 Windows 桌面的课程与任务管理应用，核心目
 
 ### 构建与交付产物
 
-- `target/apexcal-0.2.0.jar`
+- `target/apexcal-0.2.2.jar`
 - `target/dependency/`
 - `packaging/windows/dist/`
 
@@ -138,6 +138,8 @@ ApexCal 是一个面向 Windows 桌面的课程与任务管理应用，核心目
 
 - `重新加载`：走外部优先模式
 - `恢复默认`：走内置默认模式
+- `导入模板`：从指定目录导入 `class.json` / `time.json`，冲突时可选择覆盖或跳过
+- `导出模板`：导出当前课程与节次模板，并自动打开导出目录
 
 ## 6. 关键实现决策
 
@@ -165,7 +167,7 @@ mvn javafx:run
 
 ```powershell
 mvn package
-java -jar .\target\apexcal-0.2.0.jar
+java -jar .\target\apexcal-0.2.2.jar
 ```
 
 `maven-jar-plugin` 已写入 `Main-Class`，`maven-dependency-plugin` 会复制运行时依赖到 `target/dependency`。
@@ -237,7 +239,7 @@ mvn clean package
 mvn test
 mvn javafx:run
 mvn package
-java -jar .\target\apexcal-0.2.0.jar
+java -jar .\target\apexcal-0.2.2.jar
 powershell -ExecutionPolicy Bypass -File .\packaging\windows\package.ps1 -Type app-image
 powershell -ExecutionPolicy Bypass -File .\packaging\windows\package.ps1 -Type exe
 ```
