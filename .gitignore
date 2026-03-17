@@ -3,5 +3,6 @@ target/
 .vscode/
 *.log
 hs_err_pid*
+# 忽略 prompt.txt 文件
 prompt.txt
 packaging/
